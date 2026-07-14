@@ -710,8 +710,17 @@ class StockApp:
 
         bb = tk.Frame(card, bg=COLORS["card_bg"]); bb.pack(fill="x", padx=16, pady=(0, 12))
         ttk.Button(bb, text="➕ 新增型号", style="Primary.TButton", command=self.save_model).pack(side="left", padx=(0, 8))
-        ttk.Button(bb, text="＋ 数量 +1", style="Success.TButton", command=lambda: self._change_num(1)).pack(side="left", padx=(0, 8))
-        ttk.Button(bb, text="－ 数量 -1", style="Warning.TButton", command=lambda: self._change_num(-1)).pack(side="left", padx=(0, 8))
+        # 数量增减组： [+] [输入框] [-]
+        ttk.Button(bb, text="＋", style="Success.TButton", width=3,
+                   command=lambda: self._apply_delta(1)).pack(side="left")
+        self.delta_var = tk.StringVar(value="1")
+        tk.Entry(bb, textvariable=self.delta_var, font=(FONT_FAMILY, 11, "bold"),
+                 width=5, justify="center", bg=COLORS["card_bg"], fg=COLORS["text_primary"],
+                 relief="solid", bd=1, highlightthickness=1,
+                 highlightbackground=COLORS["border"],
+                 highlightcolor=COLORS["primary"]).pack(side="left", ipady=3)
+        ttk.Button(bb, text="－", style="Warning.TButton", width=3,
+                   command=lambda: self._apply_delta(-1)).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="修改", style="Edit.TButton", command=self._edit_model).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="🗑 删除型号", style="Danger.TButton", command=self._del_model).pack(side="right")
 
@@ -927,16 +936,27 @@ class StockApp:
         messagebox.showinfo("导入完成", msg)
 
     # ---------- 增删改（仅管理模式）----------
+    def _apply_delta(self, sign):
+        """解析输入框中的数量，调用 _change_num"""
+        try:
+            delta = int(self.delta_var.get()) * sign
+        except ValueError:
+            messagebox.showerror("错误", "增减数量请输入整数！")
+            return
+        self._change_num(delta)
+
     def _change_num(self, delta):
         if not self.selected_id or self.selected_id not in self.data:
             messagebox.showwarning("提示", "请先在表格中选择一条记录！"); return
+        if delta == 0:
+            messagebox.showwarning("提示", "增减数量不能为 0！"); return
         try:
             cur = int(self.data[self.selected_id]["num"]); new = cur + delta
             if new < 0: messagebox.showerror("错误", "库存不能小于 0！"); return
             item = self.data[self.selected_id]
-            label = "+" if delta > 0 else "-"
+            label = f"+{delta}" if delta > 0 else f"{delta}"
             if not messagebox.askyesno("确认操作",
-                                       f"确定将「{item.get('model','')}」数量 {label}1 吗？\n\n"
+                                       f"确定将「{item.get('model','')}」数量 {label} 吗？\n\n"
                                        f"当前库存：{cur} → 新库存：{new}"):
                 return
             self.data[self.selected_id]["num"] = new; self.num_var.set(str(new))
