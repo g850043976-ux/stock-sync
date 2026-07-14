@@ -387,10 +387,65 @@ class ImportDialog:
         ttk.Button(bar, text="确认导入", style="Primary.TButton", command=self._confirm).pack(side="right", padx=(8,0))
         ttk.Button(bar, text="取消", style="Outline.TButton", command=self._cancel).pack(side="right")
         ttk.Button(bar, text="重置", style="Reset.TButton", command=self._reset_import).pack(side="right", padx=(0, 8))
+        ttk.Button(bar, text="粘贴", style="Success.TButton", command=self._paste_again).pack(side="right", padx=(0, 8))
 
     def _reset_import(self):
         """清空数据预览"""
         self.raw_rows = []
+        self._refresh()
+
+    def _paste_again(self):
+        """重新从剪贴板读取数据"""
+        try:
+            text = self.top.clipboard_get()
+        except tk.TclError:
+            messagebox.showwarning("提示", "剪贴板为空！", parent=self.top); return
+        if not text.strip():
+            messagebox.showwarning("提示", "剪贴板内容为空！", parent=self.top); return
+        lines = text.strip().splitlines()
+        delim = "\t" if len(lines[0].split("\t")) >= 2 else ("," if len(lines[0].split(",")) >= 2 else "\t")
+        rows = []
+        for line in lines:
+            parts = next(csv.reader(io.StringIO(line))) if delim == "," else line.split(delim)
+            rows.append(parts)
+        if len(rows) < 1:
+            messagebox.showwarning("提示", "未识别到有效数据！", parent=self.top); return
+        first = rows[0]
+        hk = ["型号","名称","详情","数量","库存","单位","税收","分类","model","name","info","num","qty","unit","tax"]
+        looks_header = any(any(kw in str(c).lower() for kw in hk) for c in first)
+        if looks_header and len(rows) > 1:
+            self.headers = list(rows[0])
+            self.raw_rows = rows[1:]
+        else:
+            max_cols = max(len(r) for r in rows)
+            self.headers = [f"列 {chr(65+i)}" if i < 26 else f"列 {i+1}" for i in range(max_cols)]
+            self.raw_rows = rows
+        # 重新智能匹配列
+        n = len(self.headers)
+        self.tax_col   = self._guess(self.TAX_KEYWORDS, 0)
+        self.model_col = self._guess(self.MODEL_KEYWORDS, min(1, n-1))
+        self.info_col  = self._guess(self.INFO_KEYWORDS, min(2, n-1))
+        self.unit_col  = self._guess(self.UNIT_KEYWORDS, min(3, n-1))
+        self.num_col   = self._guess(self.NUM_KEYWORDS, min(4, n-1))
+        used = set()
+        for attr in ("tax_col", "info_col", "model_col", "unit_col", "num_col"):
+            col = getattr(self, attr)
+            while col in used and col < n - 1:
+                col += 1
+            if col in used:
+                for i in range(n):
+                    if i not in used:
+                        col = i; break
+            used.add(col)
+            setattr(self, attr, col)
+        # 更新下拉框选项和选中值
+        for cb_name, col_val in [("tax_combo", self.tax_col), ("info_combo", self.info_col),
+                                  ("model_combo", self.model_col), ("unit_combo", self.unit_col),
+                                  ("num_combo", self.num_col)]:
+            cb = getattr(self, cb_name, None)
+            if cb:
+                cb["values"] = self.headers
+                cb.current(col_val)
         self._refresh()
 
     def _refresh(self):
