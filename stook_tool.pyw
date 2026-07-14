@@ -1023,7 +1023,7 @@ class StockApp:
                 if item["num"] == 0: tag = ("zero_stock", tag)
                 chk = "☑" if self.batch_mode and rid in self.batch_checked else ""
                 self.tree.insert("", "end", iid=rid,
-                                 values=(chk, rid, item.get("tax",""), model, item.get("info",""),
+                                 values=(chk, rid, item.get("tax",""), item.get("info",""), model,
                                          item.get("unit",""), item["num"]),
                                  tags=tag)
                 cnt += 1
