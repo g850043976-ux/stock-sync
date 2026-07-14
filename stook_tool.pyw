@@ -353,7 +353,7 @@ class ImportDialog:
         tk.Label(r2, text="重复型号:", font=(FONT_FAMILY, 10),
                  bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(side="left", padx=(0, 8))
         self.dup_strategy = tk.StringVar(value="skip")
-        ttk.Radiobutton(r2, text="跳过", variable=self.dup_strategy, value="skip").pack(side="left", padx=(0, 14))
+        ttk.Radiobutton(r2, text="增加", variable=self.dup_strategy, value="skip").pack(side="left", padx=(0, 14))
         ttk.Radiobutton(r2, text="覆盖", variable=self.dup_strategy, value="overwrite").pack(side="left")
 
         # Preview table
@@ -513,8 +513,10 @@ class ImportDialog:
             if not model: se += 1; continue
             try: num = int(num_raw)
             except ValueError: num = fallback
-            if model in self.existing_models and self.dup_strategy.get() == "skip": sd += 1; continue
-            if model in self.existing_models: so += 1
+            if model in self.existing_models:
+                if self.dup_strategy.get() == "overwrite":
+                    so += 1
+                # "增加"模式下重复型号也正常导入（每条记录有独立编码）
             imported.append((tax, model, info, unit, num))
         if not imported:
             msg = "没有可导入的有效数据！"
