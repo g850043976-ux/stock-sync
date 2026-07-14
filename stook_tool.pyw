@@ -941,7 +941,7 @@ class StockApp:
         if not self.selected_id or self.selected_id not in self.data:
             messagebox.showwarning("提示", "请先在表格中点击选择一条记录！"); return
         item = self.data[self.selected_id]
-        text = f"{self.selected_id} {item.get('model','')} {item.get('info','')} {item.get('unit','')} {item.get('num',0)}"
+        text = f"{item.get('model','')} {item.get('info','')} {item.get('unit','')}"
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         messagebox.showinfo("已复制", f"已复制到剪贴板：\n{text}")
