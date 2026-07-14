@@ -547,7 +547,7 @@ class EditDialog:
 class StockApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("网络设备库存查询工具")
+        self.root.title("网络设备进项查询工具")
         self.root.geometry("900x600")
         self.root.configure(bg=COLORS["bg"])
         self.root.minsize(760, 480)
@@ -630,7 +630,7 @@ class StockApp:
         hdr = tk.Frame(self.root, bg=COLORS["header_bg"], height=56)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
         inner = tk.Frame(hdr, bg=COLORS["header_bg"]); inner.pack(side="left", padx=20, pady=8)
-        title = "📦 网络设备库存查询工具" + (" — 管理模式" if self.is_manage else " — 查看模式")
+        title = "📦 网络设备进项查询工具" + (" — 管理模式" if self.is_manage else " — 查看模式")
         tk.Label(inner, text=title, font=(FONT_FAMILY, 16, "bold"),
                  bg=COLORS["header_bg"], fg=COLORS["header_fg"]).pack(anchor="w")
 
