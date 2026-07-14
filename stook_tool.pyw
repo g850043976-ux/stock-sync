@@ -933,6 +933,12 @@ class StockApp:
         try:
             cur = int(self.data[self.selected_id]["num"]); new = cur + delta
             if new < 0: messagebox.showerror("错误", "库存不能小于 0！"); return
+            item = self.data[self.selected_id]
+            label = "+" if delta > 0 else "-"
+            if not messagebox.askyesno("确认操作",
+                                       f"确定将「{item.get('model','')}」数量 {label}1 吗？\n\n"
+                                       f"当前库存：{cur} → 新库存：{new}"):
+                return
             self.data[self.selected_id]["num"] = new; self.num_var.set(str(new))
             save_data(self.data); self._refresh_table(); self._git_push()
             self.tree.selection_set(self.selected_id)
@@ -947,6 +953,13 @@ class StockApp:
             num = int(num_text)
             if num < 0: messagebox.showerror("错误", "库存不能为负数！"); return
         except ValueError: messagebox.showerror("错误", "数量请输入整数！"); return
+
+        if not messagebox.askyesno("确认新增",
+                                   f"确定新增型号「{model}」吗？\n\n"
+                                   f"产品详情：{info or '(空)'}\n"
+                                   f"单位：{unit or '(空)'}\n"
+                                   f"库存数量：{num}"):
+            return
 
         new_id = str(self._next_id)
         self.data[new_id] = {"model": model, "info": info, "unit": unit, "num": num}
