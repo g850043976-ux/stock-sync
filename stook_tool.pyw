@@ -1252,6 +1252,7 @@ class StockApp:
             messagebox.showerror("错误", "增减数量请输入整数！")
             return
         self._change_num(delta)
+        self.delta_var.set("1")
 
     def _change_num(self, delta):
         if not self.selected_id or self.selected_id not in self.data:
