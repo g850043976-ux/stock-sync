@@ -386,6 +386,12 @@ class ImportDialog:
         self.slbl.pack(side="left", pady=6)
         ttk.Button(bar, text="确认导入", style="Primary.TButton", command=self._confirm).pack(side="right", padx=(8,0))
         ttk.Button(bar, text="取消", style="Outline.TButton", command=self._cancel).pack(side="right")
+        ttk.Button(bar, text="重置", style="Reset.TButton", command=self._reset_import).pack(side="right", padx=(0, 8))
+
+    def _reset_import(self):
+        """清空数据预览"""
+        self.raw_rows = []
+        self._refresh()
 
     def _refresh(self):
         for row in self.pt.get_children(): self.pt.delete(row)
