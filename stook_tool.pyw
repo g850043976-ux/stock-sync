@@ -755,6 +755,7 @@ class StockApp:
         tb = tk.Frame(card, bg=COLORS["card_bg"]); tb.pack(fill="x", padx=16, pady=(12, 6))
         tk.Label(tb, text="📋 库存列表", font=(FONT_FAMILY, 11, "bold"),
                  bg=COLORS["card_bg"], fg=COLORS["text_primary"]).pack(side="left")
+        ttk.Button(tb, text="📋 提取", style="Outline.TButton", command=self._copy_row).pack(side="right", padx=(0, 6))
         self.count_label = tk.Label(tb, text="", font=(FONT_FAMILY, 10),
                                     bg=COLORS["card_bg"], fg=COLORS["text_secondary"])
         self.count_label.pack(side="right")
@@ -774,8 +775,7 @@ class StockApp:
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True); vsb.pack(side="right", fill="y")
-        if self.is_manage:
-            self.tree.bind("<<TreeviewSelect>>", self._select_row)
+        self.tree.bind("<<TreeviewSelect>>", self._select_row)
         self.tree.tag_configure("even", background=COLORS["tree_even"])
         self.tree.tag_configure("odd", background=COLORS["tree_odd"])
         self.tree.tag_configure("zero_stock", foreground="#B0BEC5")
@@ -845,14 +845,14 @@ class StockApp:
         self.stats_label.config(text=f"共 {cnt} 条记录 | 库存合计 {total_qty} 台")
 
     def _select_row(self, event):
-        if not self.is_manage: return
         sel = self.tree.selection()
         if not sel: return
-        self.selected_id = sel[0]  # iid 即为数据 key
-        item = self.tree.item(self.selected_id)
-        _, tax, model, info, unit, num = item["values"]
-        self.tax_var.set(tax); self.model_var.set(model); self.info_var.set(info)
-        self.unit_var.set(unit); self.num_var.set(str(num))
+        self.selected_id = sel[0]
+        if self.is_manage:
+            item = self.tree.item(self.selected_id)
+            _, tax, model, info, unit, num = item["values"]
+            self.tax_var.set(tax); self.model_var.set(model); self.info_var.set(info)
+            self.unit_var.set(unit); self.num_var.set(str(num))
 
     # ---------- 搜索 ----------
     def search_item(self):
