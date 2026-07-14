@@ -776,6 +776,7 @@ class StockApp:
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True); vsb.pack(side="right", fill="y")
         self.tree.bind("<<TreeviewSelect>>", self._select_row)
+        self.tree.bind("<ButtonRelease-1>", self._on_tree_click)
         self.tree.tag_configure("even", background=COLORS["tree_even"])
         self.tree.tag_configure("odd", background=COLORS["tree_odd"])
         self.tree.tag_configure("zero_stock", foreground="#B0BEC5")
@@ -844,9 +845,20 @@ class StockApp:
         total_qty = sum(item["num"] for item in self.data.values())
         self.stats_label.config(text=f"共 {cnt} 条记录 | 库存合计 {total_qty} 台")
 
+    def _on_tree_click(self, event):
+        """点击表格空白区域时取消选中"""
+        row = self.tree.identify_row(event.y)
+        if not row:
+            self.tree.selection_remove(self.tree.selection())
+
     def _select_row(self, event):
         sel = self.tree.selection()
-        if not sel: return
+        if not sel:
+            self.selected_id = None
+            if self.is_manage:
+                self.tax_var.set(""); self.model_var.set(""); self.info_var.set("")
+                self.unit_var.set(""); self.num_var.set("0")
+            return
         self.selected_id = sel[0]
         if self.is_manage:
             item = self.tree.item(self.selected_id)
