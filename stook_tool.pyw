@@ -445,6 +445,10 @@ class ImportDialog:
             cb = getattr(self, cb_name, None)
             if cb:
                 cb["values"] = self.headers
+                if 0 <= col_val < len(self.headers):
+                    cb.current(col_val)
+                else:
+                    cb.current(0)
                 cb.current(col_val)
         self._refresh()
 
@@ -481,11 +485,24 @@ class ImportDialog:
         self.slbl.config(text=" | ".join(parts))
 
     def _confirm(self):
-        ti = self.tax_combo.current()
-        mi, ii, ui, ni = (self.model_combo.current(), self.info_combo.current(),
-                           self.unit_combo.current(), self.num_combo.current())
-        try: fallback = int(self.default_num.get().strip())
-        except ValueError: messagebox.showwarning("提示", "默认数量请输入整数！", parent=self.top); return
+        try:
+            ti = self.tax_combo.current()
+            mi = self.model_combo.current()
+            ii = self.info_combo.current()
+            ui = self.unit_combo.current()
+            ni = self.num_combo.current()
+        except Exception:
+            messagebox.showwarning("提示", "列映射读取失败，请重新粘贴！", parent=self.top); return
+
+        # 验证列映射
+        if any(x < 0 for x in (ti, mi, ii, ui, ni)):
+            messagebox.showwarning("提示", "请先在下拉框中为每个字段选择对应的列！", parent=self.top); return
+
+        try:
+            fallback = int(self.default_num.get().strip() or "0")
+        except ValueError:
+            messagebox.showwarning("提示", "默认数量请输入整数！", parent=self.top); return
+
         imported = []; se = sd = so = 0
         for row in self.raw_rows:
             tax   = str(row[ti] if ti < len(row) else "").strip()
@@ -499,7 +516,10 @@ class ImportDialog:
             if model in self.existing_models and self.dup_strategy.get() == "skip": sd += 1; continue
             if model in self.existing_models: so += 1
             imported.append((tax, model, info, unit, num))
-        if not imported: messagebox.showinfo("提示", "没有可导入的有效数据！", parent=self.top); return
+        if not imported:
+            msg = "没有可导入的有效数据！"
+            if se: msg += f"\n\n所有 {se} 行设备型号均为空，请检查列映射是否正确。"
+            messagebox.showinfo("提示", msg, parent=self.top); return
         self.result = {"data": imported, "stats": {"imported": len(imported), "skipped_empty": se,
                         "skipped_dup": sd, "overwritten": so}}
         self.top.destroy()
