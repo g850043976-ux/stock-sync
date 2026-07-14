@@ -303,8 +303,8 @@ class ImportDialog:
     def _build(self):
         self.top = tk.Toplevel()
         self.top.title("导入预览")
-        self.top.geometry("780x620")
-        self.top.minsize(640, 500)
+        self.top.geometry("780x650")
+        self.top.minsize(640, 520)
         self.top.transient(self.top.master)
         self.top.grab_set()
         self.top.configure(bg=COLORS["bg"])
@@ -312,7 +312,7 @@ class ImportDialog:
         m = self.top.master
         pw, ph = m.winfo_width(), m.winfo_height()
         px, py = m.winfo_rootx(), m.winfo_rooty()
-        self.top.geometry(f"780x620+{max(0,px+(pw-780)//2)}+{max(0,py+(ph-620)//2)}")
+        self.top.geometry(f"780x650+{max(0,px+(pw-780)//2)}+{max(0,py+(ph-650)//2)}")
 
         hdr = tk.Frame(self.top, bg=COLORS["header_bg"], height=42)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
@@ -354,6 +354,14 @@ class ImportDialog:
         self.dup_strategy = tk.StringVar(value="skip")
         ttk.Radiobutton(r2, text="跳过", variable=self.dup_strategy, value="skip").pack(side="left", padx=(0, 14))
         ttk.Radiobutton(r2, text="覆盖", variable=self.dup_strategy, value="overwrite").pack(side="left")
+
+        r3 = tk.Frame(inner, bg=COLORS["card_bg"]); r3.pack(fill="x", pady=(4, 0))
+        tk.Label(r3, text="数量模式:", font=(FONT_FAMILY, 10),
+                 bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(side="left", padx=(0, 8))
+        self.qty_mode = tk.StringVar(value="set")
+        ttk.Radiobutton(r3, text="直接设置", variable=self.qty_mode, value="set").pack(side="left", padx=(0, 10))
+        ttk.Radiobutton(r3, text="累加库存", variable=self.qty_mode, value="add").pack(side="left", padx=(0, 10))
+        ttk.Radiobutton(r3, text="减去库存", variable=self.qty_mode, value="sub").pack(side="left")
 
         # Preview table
         c2 = tk.Frame(self.top, bg=COLORS["card_bg"], bd=0,
@@ -438,7 +446,8 @@ class ImportDialog:
             if model in self.existing_models: so += 1
             imported.append((tax, model, info, unit, num))
         if not imported: messagebox.showinfo("提示", "没有可导入的有效数据！", parent=self.top); return
-        self.result = {"data": imported, "stats": {"imported": len(imported), "skipped_empty": se,
+        self.result = {"data": imported, "qty_mode": self.qty_mode.get(),
+                        "stats": {"imported": len(imported), "skipped_empty": se,
                         "skipped_dup": sd, "overwritten": so}}
         self.top.destroy()
 
@@ -1023,15 +1032,37 @@ class StockApp:
         dlg = ImportDialog(self.root, headers, data_rows, existing_models)
         self.root.wait_window(dlg.top)
         if dlg.result is None: return
+        qty_mode = dlg.result.get("qty_mode", "set")
+        updated_count = 0
         for tax, model, info, unit, num in dlg.result["data"]:
-            new_id = str(self._next_id)
-            self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
-            self._next_id += 1
+            # 查找是否已有同名同详情的记录
+            existing_id = None
+            for rid, item in self.data.items():
+                if item.get("model", "") == model and item.get("info", "") == info:
+                    existing_id = rid; break
+
+            if existing_id:
+                cur = int(self.data[existing_id]["num"])
+                if qty_mode == "add":
+                    self.data[existing_id]["num"] = cur + num
+                elif qty_mode == "sub":
+                    self.data[existing_id]["num"] = max(0, cur - num)
+                else:
+                    self.data[existing_id]["num"] = num
+                if tax: self.data[existing_id]["tax"] = tax
+                if unit: self.data[existing_id]["unit"] = unit
+                updated_count += 1
+            else:
+                new_id = str(self._next_id)
+                self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
+                self._next_id += 1
         save_data(self.data)
         self._refresh_table()
         self._git_push()
         s = dlg.result["stats"]
-        msg = f"成功导入 {s['imported']} 条记录！"
+        mode_label = {"set": "直接设置", "add": "累加库存", "sub": "减去库存"}.get(qty_mode, qty_mode)
+        msg = f"成功导入 {s['imported']} 条记录！（数量模式：{mode_label}）"
+        if updated_count: msg += f"\n更新 {updated_count} 条已有记录的库存。"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
         messagebox.showinfo("导入完成", msg)
 
