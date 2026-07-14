@@ -633,8 +633,6 @@ class StockApp:
         title = "📦 网络设备库存查询工具" + (" — 管理模式" if self.is_manage else " — 查看模式")
         tk.Label(inner, text=title, font=(FONT_FAMILY, 16, "bold"),
                  bg=COLORS["header_bg"], fg=COLORS["header_fg"]).pack(anchor="w")
-        tk.Label(inner, text="管理端可增删改，查看端只读。数据通过 GitHub 同步。",
-                 font=(FONT_FAMILY, 9), bg=COLORS["header_bg"], fg="#8FA4B8").pack(anchor="w")
 
         # 切换模式按钮（右上角）
         switch_text = "🔒 切换为查看模式" if self.is_manage else "🔓 切换为管理模式"
