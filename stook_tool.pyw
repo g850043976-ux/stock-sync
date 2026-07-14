@@ -761,15 +761,21 @@ class StockApp:
         dlg = ImportDialog(self.root, headers, data_rows, set(self.data.keys()))
         self.root.wait_window(dlg.top)
         if dlg.result is None: return
+        skipped_conflict = 0
         for model, info, num in dlg.result["data"]:
+            existing = self.data.get(model)
+            if existing and existing.get("info", "").strip() != info.strip():
+                skipped_conflict += 1
+                continue
             self.data[model] = {"info": info, "num": num}
         save_data(self.data)
         self._refresh_table()
         self._git_push()
         s = dlg.result["stats"]
-        msg = f"成功导入 {s['imported']} 条记录！"
+        msg = f"成功导入 {s['imported'] - skipped_conflict} 条记录！"
         if s["overwritten"]: msg += f"\n覆盖更新 {s['overwritten']} 条。"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
+        if skipped_conflict: msg += f"\n跳过 {skipped_conflict} 条同名但详情不同（未覆盖）。"
         messagebox.showinfo("导入完成", msg)
 
     # ---------- 增删改（仅管理模式）----------
@@ -791,8 +797,26 @@ class StockApp:
             num = int(num_text)
             if num < 0: messagebox.showerror("错误", "库存不能为负数！"); return
         except ValueError: messagebox.showerror("错误", "数量请输入整数！"); return
+
+        # 检查是否已存在同名但详情不同的设备
+        existing = self.data.get(model)
+        if existing and existing.get("info", "").strip() != info:
+            messagebox.showwarning(
+                "型号冲突",
+                f"型号「{model}」已存在，但产品详情不同：\n\n"
+                f"已有：{existing['info']}\n"
+                f"新添：{info}\n\n"
+                f"请使用不同的型号名称来区分这两个设备。",
+            )
+            return
+
         is_new = model not in self.data
-        self.data[model] = {"info": info, "num": num}
+        if is_new:
+            self.data[model] = {"info": info, "num": num}
+        else:
+            # 相同型号相同详情 → 更新数量
+            self.data[model]["num"] = num
+            self.data[model]["info"] = info
         save_data(self.data); self._refresh_table(); self._git_push()
         messagebox.showinfo("成功", f"型号「{model}」已{'新增' if is_new else '更新'}！")
 
