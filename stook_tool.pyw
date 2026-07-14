@@ -673,6 +673,7 @@ class StockApp:
             self._build_table()
             self._build_footer()
             self._refresh_from_github()
+            self._start_auto_refresh()
 
     @property
     def is_manage(self):
@@ -928,6 +929,13 @@ class StockApp:
             self.root.after(0, _done)
 
         threading.Thread(target=_do, daemon=True).start()
+
+    def _start_auto_refresh(self):
+        """查看模式：每 30 秒自动刷新"""
+        if self.is_manage:
+            return
+        self._refresh_from_github()
+        self.root.after(30000, self._start_auto_refresh)
 
     # ---------- Git Push（管理模式）----------
     def _git_push(self):
