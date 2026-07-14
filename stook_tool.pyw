@@ -296,8 +296,8 @@ class ImportDialog:
     def _build(self):
         self.top = tk.Toplevel()
         self.top.title("导入预览")
-        self.top.geometry("780x560")
-        self.top.minsize(640, 420)
+        self.top.geometry("780x620")
+        self.top.minsize(640, 500)
         self.top.transient(self.top.master)
         self.top.grab_set()
         self.top.configure(bg=COLORS["bg"])
@@ -305,7 +305,7 @@ class ImportDialog:
         m = self.top.master
         pw, ph = m.winfo_width(), m.winfo_height()
         px, py = m.winfo_rootx(), m.winfo_rooty()
-        self.top.geometry(f"780x560+{max(0,px+(pw-780)//2)}+{max(0,py+(ph-560)//2)}")
+        self.top.geometry(f"780x620+{max(0,px+(pw-780)//2)}+{max(0,py+(ph-620)//2)}")
 
         hdr = tk.Frame(self.top, bg=COLORS["header_bg"], height=42)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
@@ -359,7 +359,7 @@ class ImportDialog:
         self.pcnt.pack(side="right")
 
         ct = tk.Frame(c2, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(14,4), pady=(0,10))
-        self.pt = ttk.Treeview(ct, columns=("row","tax","info","model","unit","num"), show="headings", selectmode="none", height=10)
+        self.pt = ttk.Treeview(ct, columns=("row","tax","info","model","unit","num"), show="headings", selectmode="none", height=8)
         for c, t, w in [("row","行",36), ("tax","税收分类",80), ("info","产品详情",260),
                          ("model","设备型号",140), ("unit","单位",44), ("num","数量",54)]:
             self.pt.heading(c, text=t, anchor="center" if c in ("row","unit","num") else "w")
