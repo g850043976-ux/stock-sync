@@ -368,8 +368,8 @@ class ImportDialog:
 
         ct = tk.Frame(c2, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(14,4), pady=(0,10))
         self.pt = ttk.Treeview(ct, columns=("row","tax","info","model","unit","num"), show="headings", selectmode="none", height=8)
-        for c, t, w in [("row","行",36), ("tax","税收分类",80), ("info","产品详情",260),
-                         ("model","设备型号",140), ("unit","单位",44), ("num","数量",54)]:
+        for c, t, w in [("row","行",36), ("tax","税收分类",80), ("model","设备型号",140),
+                         ("info","产品详情",260), ("unit","单位",44), ("num","数量",54)]:
             self.pt.heading(c, text=t, anchor="center" if c in ("row","unit","num") else "w")
             self.pt.column(c, width=w, anchor="center" if c in ("row","unit","num") else "w", stretch=c=="info")
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.pt.yview)
@@ -467,7 +467,7 @@ class ImportDialog:
             num_raw = str(row[ni] if ni < len(row) else "").strip()
             if not model:
                 empty += 1
-                self.pt.insert("", "end", values=(idx+1, tax or "", "(空详情)", "(空型号，跳过)", unit, "—"),
+                self.pt.insert("", "end", values=(idx+1, tax or "", "(空型号，跳过)", "(空详情)", unit, "—"),
                                tags=("empty", "even" if idx%2==0 else "odd")); continue
             try: num = int(num_raw)
             except ValueError:
@@ -476,7 +476,7 @@ class ImportDialog:
             tags = ["even"] if idx%2==0 else ["odd"]
             if model in self.existing_models: tags.append("dup"); dup += 1
             valid += 1
-            self.pt.insert("", "end", values=(idx+1, tax or "", info or "(空)", model, unit or "", num), tags=tuple(tags))
+            self.pt.insert("", "end", values=(idx+1, tax or "", model, info or "(空)", unit or "", num), tags=tuple(tags))
         total = len(self.raw_rows)
         self.pcnt.config(text=f"显示前 {limit} 行" if total > limit else f"共 {total} 行")
         parts = [f"共 {total} 行", f"有效 {valid} 条"]
