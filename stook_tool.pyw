@@ -1127,17 +1127,49 @@ class StockApp:
                     self._next_id += 1
                     added += 1
             else:
-                # "减少"模式：每行都新增
-                new_id = str(self._next_id)
-                self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
-                self._next_id += 1
-                added += 1
+                # "减少"模式：三字段全匹配 → 减少数量，否则报错
+                found = False
+                for rid, item in self.data.items():
+                    if (item.get("tax","") == tax and item.get("model","") == model
+                            and item.get("info","") == info):
+                        if item["num"] < num:
+                            if not messagebox.askyesno("库存不足",
+                                    f"「{model}」当前库存 {item['num']}，不足以减少 {num}。\n\n"
+                                    f"是否将库存清零？", parent=self.root):
+                                break
+                            item["num"] = 0
+                        else:
+                            item["num"] -= num
+                        found = True
+                        merged += 1
+                        break
+                if not found:
+                    # 分析不匹配原因
+                    tax_match = any(item.get("tax","") == tax for item in self.data.values())
+                    info_match = any(item.get("info","") == info for item in self.data.values())
+                    model_match = any(item.get("model","") == model for item in self.data.values())
+                    details = []
+                    if tax_match: details.append("税收分类：已存在 ✓")
+                    else: details.append("税收分类：未找到「{0}」".format(tax or "(空)"))
+                    if info_match: details.append("产品详情：已存在 ✓")
+                    else: details.append("产品详情：未找到「{0}」".format(info or "(空)"))
+                    if model_match: details.append("设备型号：已存在 ✓")
+                    else: details.append("设备型号：未找到「{0}」".format(model or "(空)"))
+                    messagebox.showwarning("无法减少",
+                        f"未找到与「{model or '(空型号)'}」完全匹配的记录，无法减少库存。\n\n"
+                        + "\n".join(details) + "\n\n"
+                        "请检查数据或改用\"增加\"模式。", parent=self.root)
         save_data(self.data)
         self._refresh_table()
         self._git_push()
         s = dlg.result["stats"]
-        msg = f"成功导入 {added} 条记录！"
-        if merged: msg += f"\n{merged} 条全匹配，数量直接累加。"
+        is_add = dlg.dup_strategy.get() == "skip"
+        if is_add:
+            msg = f"成功导入 {added} 条记录！"
+            if merged: msg += f"\n{merged} 条全匹配，数量直接累加。"
+        else:
+            msg = f"成功减少 {merged} 条记录的数量！"
+            if added: msg += f"\n{added} 条新增。"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
         messagebox.showinfo("导入完成", msg)
 
