@@ -467,7 +467,11 @@ class ImportDialog:
             num_raw = str(row[ni] if ni < len(row) else "").strip()
             if not model:
                 empty += 1
-                self.pt.insert("", "end", values=(idx+1, tax or "", "(空型号，跳过)", "(空详情)", unit, "—"),
+                self.pt.insert("", "end", values=(idx+1, tax or "", "(空型号，跳过)", info or "(空)", unit, "—"),
+                               tags=("empty", "even" if idx%2==0 else "odd")); continue
+            if not info:
+                empty += 1
+                self.pt.insert("", "end", values=(idx+1, tax or "", model, "(空详情，跳过)", unit, "—"),
                                tags=("empty", "even" if idx%2==0 else "odd")); continue
             try: num = int(num_raw)
             except ValueError:
@@ -504,7 +508,7 @@ class ImportDialog:
             messagebox.showwarning("提示", "默认数量请输入整数！", parent=self.top); return
 
         imported = []; se = sd = so = 0
-        failed_rows = []
+        failed_model_rows = []; failed_info_rows = []
         for idx, row in enumerate(self.raw_rows):
             tax   = str(row[ti] if ti < len(row) else "").strip()
             model = str(row[mi] if mi < len(row) else "").strip()
@@ -513,7 +517,11 @@ class ImportDialog:
             num_raw = str(row[ni] if ni < len(row) else "").strip()
             if not model:
                 se += 1
-                failed_rows.append(idx + 1)
+                failed_model_rows.append(idx + 1)
+                continue
+            if not info:
+                se += 1
+                failed_info_rows.append(idx + 1)
                 continue
             try: num = int(num_raw)
             except ValueError: num = fallback
@@ -524,12 +532,15 @@ class ImportDialog:
             imported.append((tax, model, info, unit, num))
         if not imported:
             msg = "没有可导入的有效数据！"
-            if failed_rows:
-                msg += f"\n\n失败行（设备型号为空）：{', '.join(str(r) for r in failed_rows)}"
+            if failed_model_rows:
+                msg += f"\n\n设备型号为空：第 {', '.join(str(r) for r in failed_model_rows)} 行"
+            if failed_info_rows:
+                msg += f"\n\n产品详情为空：第 {', '.join(str(r) for r in failed_info_rows)} 行"
             messagebox.showinfo("提示", msg, parent=self.top); return
         self.result = {"data": imported, "stats": {"imported": len(imported), "skipped_empty": se,
                         "skipped_dup": sd, "overwritten": so},
-                        "failed_rows": failed_rows}
+                        "failed_model_rows": failed_model_rows,
+                        "failed_info_rows": failed_info_rows}
         self.top.destroy()
 
     def _cancel(self): self.top.destroy()
@@ -1200,8 +1211,12 @@ class StockApp:
             msg = f"成功减少 {merged} 条记录的数量！"
             if added: msg += f"\n{added} 条新增。"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
-        failed = dlg.result.get("failed_rows", [])
-        if failed: msg += f"\n\n失败 {len(failed)} 行（设备型号为空）：第 {', '.join(str(r) for r in failed)} 行，已跳过。"
+        failed_model = dlg.result.get("failed_model_rows", [])
+        failed_info = dlg.result.get("failed_info_rows", [])
+        if failed_model:
+            msg += f"\n\n失败 {len(failed_model)} 行（设备型号为空）：第 {', '.join(str(r) for r in failed_model)} 行，已跳过。"
+        if failed_info:
+            msg += f"\n失败 {len(failed_info)} 行（产品详情为空）：第 {', '.join(str(r) for r in failed_info)} 行，已跳过。"
         messagebox.showinfo("导入完成", msg)
 
     def _reset_form(self):
