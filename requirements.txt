@@ -1,3 +1,2 @@
-# 纯标准库实现，无外部依赖
-# 如需 Excel 导入功能，可取消下行注释：
-# openpyxl
+flask
+# openpyxl  # 如需 Excel 导入功能，取消注释
