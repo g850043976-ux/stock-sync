@@ -558,6 +558,8 @@ class StockApp:
         raw = load_data()
         self.data, self._next_id = migrate_data(raw)
         self.selected_id = None  # 当前选中记录的 ID
+        self.batch_mode = False   # 批量删除模式
+        self.batch_checked = set()  # 批量删除勾选的 ID 集合
         self._last_push_ok = True
 
         # 首次运行 → 选择模式
@@ -755,17 +757,24 @@ class StockApp:
         tb = tk.Frame(card, bg=COLORS["card_bg"]); tb.pack(fill="x", padx=16, pady=(12, 6))
         tk.Label(tb, text="📋 库存列表", font=(FONT_FAMILY, 11, "bold"),
                  bg=COLORS["card_bg"], fg=COLORS["text_primary"]).pack(side="left")
+        self.batch_btn = ttk.Button(tb, text="🗑 批量删除", style="Outline.TButton",
+                                    command=self._toggle_batch_mode)
+        self.batch_btn.pack(side="right", padx=(0, 6))
+        self.batch_confirm_btn = ttk.Button(tb, text="确定删除", style="Danger.TButton",
+                                            command=self._batch_delete)
         ttk.Button(tb, text="📋 提取", style="Outline.TButton", command=self._copy_row).pack(side="right", padx=(0, 6))
         self.count_label = tk.Label(tb, text="", font=(FONT_FAMILY, 10),
                                     bg=COLORS["card_bg"], fg=COLORS["text_secondary"])
         self.count_label.pack(side="right")
 
         ct = tk.Frame(card, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(16, 4), pady=(0, 12))
-        self.tree = ttk.Treeview(ct, columns=("id","tax","model","info","unit","num"), show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(ct, columns=("chk","id","tax","model","info","unit","num"), show="headings", selectmode="browse")
+        self.tree.heading("chk", text="☐", anchor="center")
         self.tree.heading("id", text="编码", anchor="center")
         self.tree.heading("tax", text="税收分类"); self.tree.heading("model", text="设备型号")
         self.tree.heading("info", text="产品详情")
         self.tree.heading("unit", text="单位", anchor="center"); self.tree.heading("num", text="数量", anchor="center")
+        self.tree.column("chk", width=0, minwidth=0, stretch=False)
         self.tree.column("id", width=50, minwidth=40, anchor="center")
         self.tree.column("tax", width=100, minwidth=70)
         self.tree.column("model", width=150, minwidth=90)
@@ -780,6 +789,7 @@ class StockApp:
         self.tree.tag_configure("even", background=COLORS["tree_even"])
         self.tree.tag_configure("odd", background=COLORS["tree_odd"])
         self.tree.tag_configure("zero_stock", foreground="#B0BEC5")
+        self.batch_confirm_btn.pack_forget()  # 初始隐藏
 
     # ---------- 底部状态栏 ----------
     def _build_footer(self):
@@ -836,8 +846,9 @@ class StockApp:
         for idx, (rid, item) in enumerate(self.data.items()):
             tag = "even" if idx % 2 == 0 else "odd"
             if item["num"] == 0: tag = ("zero_stock", tag)
+            chk = "☑" if self.batch_mode and rid in self.batch_checked else ""
             self.tree.insert("", "end", iid=rid,
-                             values=(rid, item.get("tax",""), item.get("model",""), item.get("info",""),
+                             values=(chk, rid, item.get("tax",""), item.get("model",""), item.get("info",""),
                                      item.get("unit",""), item["num"]),
                              tags=tag)
         cnt = len(self.data)
@@ -846,12 +857,56 @@ class StockApp:
         self.stats_label.config(text=f"共 {cnt} 条记录 | 库存合计 {total_qty} 台")
 
     def _on_tree_click(self, event):
-        """点击表格空白区域时取消选中"""
+        """点击表格空白区域时取消选中；批量模式下点击行切换勾选"""
         row = self.tree.identify_row(event.y)
         if not row:
             self.tree.selection_remove(self.tree.selection())
+            return
+        if self.batch_mode and row:
+            # 批量模式：点击行切换勾选状态
+            if row in self.batch_checked:
+                self.batch_checked.discard(row)
+            else:
+                self.batch_checked.add(row)
+            self._refresh_table()
+
+    def _toggle_batch_mode(self):
+        """切换批量删除模式"""
+        self.batch_mode = not self.batch_mode
+        self.batch_checked.clear()
+        if self.batch_mode:
+            self.tree.column("chk", width=36, minwidth=36)
+            self.tree.heading("chk", text="☐")
+            self.batch_btn.config(text="取消")
+            self.batch_confirm_btn.pack(side="right", padx=(0, 6))
+        else:
+            self.tree.column("chk", width=0, minwidth=0)
+            self.batch_btn.config(text="🗑 批量删除")
+            self.batch_confirm_btn.pack_forget()
+            self.selected_id = None
+        self._refresh_table()
+
+    def _batch_delete(self):
+        """执行批量删除"""
+        if not self.batch_checked:
+            messagebox.showwarning("提示", "请先勾选要删除的记录！")
+            return
+        count = len(self.batch_checked)
+        if not messagebox.askyesno("确认批量删除",
+                                   f"确定删除已勾选的 {count} 条记录吗？\n\n此操作不可恢复。"):
+            return
+        for rid in list(self.batch_checked):
+            if rid in self.data:
+                del self.data[rid]
+        save_data(self.data)
+        self.batch_checked.clear()
+        self._refresh_table()
+        self._git_push()
+        messagebox.showinfo("完成", f"已删除 {count} 条记录。")
 
     def _select_row(self, event):
+        if self.batch_mode:
+            return  # 批量模式下不更新编辑面板
         sel = self.tree.selection()
         if not sel:
             self.selected_id = None
@@ -862,7 +917,7 @@ class StockApp:
         self.selected_id = sel[0]
         if self.is_manage:
             item = self.tree.item(self.selected_id)
-            _, tax, model, info, unit, num = item["values"]
+            _, chk, tax, model, info, unit, num = item["values"]
             self.tax_var.set(tax); self.model_var.set(model); self.info_var.set(info)
             self.unit_var.set(unit); self.num_var.set(str(num))
 
@@ -877,8 +932,9 @@ class StockApp:
             if keyword in model.lower() or keyword in item.get("info","").lower():
                 tag = "even" if cnt % 2 == 0 else "odd"
                 if item["num"] == 0: tag = ("zero_stock", tag)
+                chk = "☑" if self.batch_mode and rid in self.batch_checked else ""
                 self.tree.insert("", "end", iid=rid,
-                                 values=(rid, item.get("tax",""), model, item.get("info",""),
+                                 values=(chk, rid, item.get("tax",""), model, item.get("info",""),
                                          item.get("unit",""), item["num"]),
                                  tags=tag)
                 cnt += 1
