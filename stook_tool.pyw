@@ -473,11 +473,11 @@ class ImportDialog:
                                tags=("empty", "even" if idx%2==0 else "odd")); continue
             if not model:
                 empty += 1
-                self.pt.insert("", "end", values=(idx+1, tax or "", info or "", "", unit or "", "—"),
+                self.pt.insert("", "end", values=(idx+1, tax or "", "", info or "", unit or "", "—"),
                                tags=("empty", "even" if idx%2==0 else "odd")); continue
             if not info:
                 empty += 1
-                self.pt.insert("", "end", values=(idx+1, tax or "", "", model, unit or "", "—"),
+                self.pt.insert("", "end", values=(idx+1, tax or "", model, "", unit or "", "—"),
                                tags=("empty", "even" if idx%2==0 else "odd")); continue
             try: num = int(num_raw)
             except ValueError:
@@ -486,7 +486,7 @@ class ImportDialog:
             tags = ["even"] if idx%2==0 else ["odd"]
             if model in self.existing_models: tags.append("dup"); dup += 1
             valid += 1
-            self.pt.insert("", "end", values=(idx+1, tax or "", info or "(空)", model, unit or "", num), tags=tuple(tags))
+            self.pt.insert("", "end", values=(idx+1, tax or "", model, info or "(空)", unit or "", num), tags=tuple(tags))
         total = len(self.raw_rows)
         self.pcnt.config(text=f"显示前 {limit} 行" if total > limit else f"共 {total} 行")
         parts = [f"共 {total} 行", f"有效 {valid} 条"]
