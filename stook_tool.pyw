@@ -613,6 +613,9 @@ class StockApp:
         style.configure("Edit.TButton", font=(FONT_FAMILY, 10, "bold"),
                         background="#FDD835", foreground="#333333", borderwidth=0, padding=(12,6))
         style.map("Edit.TButton", background=[("active", "#F9A825"), ("pressed", "#FBC02D")])
+        style.configure("Reset.TButton", font=(FONT_FAMILY, 10, "bold"),
+                        background="#7E57C2", foreground="white", borderwidth=0, padding=(12,6))
+        style.map("Reset.TButton", background=[("active", "#6A1B9A"), ("pressed", "#5E35B1")])
         style.configure("Treeview", font=(FONT_FAMILY, 10),
                         background=COLORS["card_bg"], fieldbackground=COLORS["card_bg"],
                         foreground=COLORS["text_primary"], rowheight=34, borderwidth=0)
@@ -745,6 +748,7 @@ class StockApp:
         ttk.Button(bb, text="－", style="Warning.TButton", width=3,
                    command=lambda: self._apply_delta(-1)).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="修改", style="Edit.TButton", command=self._edit_model).pack(side="left", padx=(0, 8))
+        ttk.Button(bb, text="重置", style="Reset.TButton", command=self._reset_form).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="🗑 删除型号", style="Danger.TButton", command=self._del_model).pack(side="right")
 
     # ---------- 表格 ----------
@@ -1030,6 +1034,12 @@ class StockApp:
         msg = f"成功导入 {s['imported']} 条记录！"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
         messagebox.showinfo("导入完成", msg)
+
+    def _reset_form(self):
+        """清空新增表单"""
+        self.tax_var.set(""); self.model_var.set(""); self.info_var.set("")
+        self.unit_var.set(""); self.num_var.set("0")
+        self.tree.selection_remove(self.tree.selection())
 
     def _copy_row(self):
         """将选中行内容复制为空格分隔的文本"""
