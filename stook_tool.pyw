@@ -71,6 +71,33 @@ def save_data(data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+def migrate_data(data):
+    """将旧格式 {model: {info,unit,num}} 迁移为新格式 {id: {model,info,unit,num}}"""
+    if not data:
+        return data, 1
+    # 判断是否已是新格式（第一个 key 是否为纯数字字符串）
+    first_key = next(iter(data))
+    if first_key.isdigit():
+        next_id = max(int(k) for k in data) + 1
+        return data, next_id
+    # 迁移旧格式
+    new_data = {}
+    for i, (model, item) in enumerate(data.items(), 1):
+        new_data[str(i)] = {
+            "model": model,
+            "info": item.get("info", ""),
+            "unit": item.get("unit", ""),
+            "num": item.get("num", 0),
+        }
+    return new_data, len(new_data) + 1
+
+
+def get_next_id(data):
+    if not data:
+        return 1
+    return max(int(k) for k in data) + 1
+
+
 # ============================================================
 # 配置读写
 # ============================================================
@@ -416,7 +443,9 @@ class StockApp:
         self.config = load_config()
         self.mode = self.config.get("mode", "")
         self.github = GitHubManager()
-        self.data = load_data()
+        raw = load_data()
+        self.data, self._next_id = migrate_data(raw)
+        self.selected_id = None  # 当前选中记录的 ID
         self._last_push_ok = True
 
         # 首次运行 → 选择模式
@@ -604,11 +633,13 @@ class StockApp:
         self.count_label.pack(side="right")
 
         ct = tk.Frame(card, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(16, 4), pady=(0, 12))
-        self.tree = ttk.Treeview(ct, columns=("model","info","unit","num"), show="headings", selectmode="browse")
-        self.tree.heading("model", text="  设备型号"); self.tree.heading("info", text="产品详情")
+        self.tree = ttk.Treeview(ct, columns=("id","model","info","unit","num"), show="headings", selectmode="browse")
+        self.tree.heading("id", text="编码", anchor="center")
+        self.tree.heading("model", text="设备型号"); self.tree.heading("info", text="产品详情")
         self.tree.heading("unit", text="单位", anchor="center"); self.tree.heading("num", text="数量", anchor="center")
-        self.tree.column("model", width=180, minwidth=100)
-        self.tree.column("info", width=410, minwidth=180)
+        self.tree.column("id", width=50, minwidth=40, anchor="center")
+        self.tree.column("model", width=170, minwidth=100)
+        self.tree.column("info", width=390, minwidth=160)
         self.tree.column("unit", width=60, minwidth=50, anchor="center")
         self.tree.column("num", width=80, minwidth=60, anchor="center")
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.tree.yview)
@@ -650,8 +681,10 @@ class StockApp:
             data = self.github.pull_data()
             def _done():
                 if data:
-                    self.data = data
-                    save_data(data)
+                    migrated, nid = migrate_data(data)
+                    self.data = migrated
+                    self._next_id = nid
+                    save_data(migrated)
                     self._refresh_table()
                     self.status_label.config(text="👁️ 查看端 | 数据来自 GitHub")
                 else:
@@ -670,21 +703,24 @@ class StockApp:
     # ---------- 表格操作 ----------
     def _refresh_table(self):
         for row in self.tree.get_children(): self.tree.delete(row)
-        for idx, (model, item) in enumerate(self.data.items()):
+        for idx, (rid, item) in enumerate(self.data.items()):
             tag = "even" if idx % 2 == 0 else "odd"
             if item["num"] == 0: tag = ("zero_stock", tag)
-            self.tree.insert("", "end", values=(model, item.get("info",""), item.get("unit",""), item["num"]), tags=tag)
+            self.tree.insert("", "end", iid=rid,
+                             values=(rid, item.get("model",""), item.get("info",""), item.get("unit",""), item["num"]),
+                             tags=tag)
         cnt = len(self.data)
         self.count_label.config(text=f"共 {cnt} 条记录" if cnt else "暂无数据")
         total_qty = sum(item["num"] for item in self.data.values())
-        self.stats_label.config(text=f"共 {cnt} 种型号 | 库存合计 {total_qty} 台")
+        self.stats_label.config(text=f"共 {cnt} 条记录 | 库存合计 {total_qty} 台")
 
     def _select_row(self, event):
         if not self.is_manage: return
         sel = self.tree.selection()
         if not sel: return
-        item = self.tree.item(sel[0])
-        model, info, unit, num = item["values"]
+        self.selected_id = sel[0]  # iid 即为数据 key
+        item = self.tree.item(self.selected_id)
+        _, model, info, unit, num = item["values"]
         self.model_var.set(model); self.info_var.set(info); self.unit_var.set(unit); self.num_var.set(str(num))
 
     # ---------- 搜索 ----------
@@ -693,11 +729,14 @@ class StockApp:
         if not keyword: self._refresh_table(); return
         for row in self.tree.get_children(): self.tree.delete(row)
         cnt = 0
-        for model, item in self.data.items():
-            if keyword in model.lower() or keyword in item["info"].lower():
+        for rid, item in self.data.items():
+            model = item.get("model", "")
+            if keyword in model.lower() or keyword in item.get("info","").lower():
                 tag = "even" if cnt % 2 == 0 else "odd"
                 if item["num"] == 0: tag = ("zero_stock", tag)
-                self.tree.insert("", "end", values=(model, item.get("info",""), item.get("unit",""), item["num"]), tags=tag)
+                self.tree.insert("", "end", iid=rid,
+                                 values=(rid, model, item.get("info",""), item.get("unit",""), item["num"]),
+                                 tags=tag)
                 cnt += 1
         self.count_label.config(text=f"搜索到 {cnt} 条结果" if keyword else "")
 
@@ -774,42 +813,33 @@ class StockApp:
 
     def _do_import(self, headers, data_rows):
         if not data_rows: messagebox.showwarning("提示", "没有数据行！"); return
-        dlg = ImportDialog(self.root, headers, data_rows, set(self.data.keys()))
+        # 收集现有型号名（用于预览标记重复，不再用于阻止导入）
+        existing_models = {item.get("model", "") for item in self.data.values()}
+        dlg = ImportDialog(self.root, headers, data_rows, existing_models)
         self.root.wait_window(dlg.top)
         if dlg.result is None: return
-        skipped_conflict = 0
         for model, info, unit, num in dlg.result["data"]:
-            existing = self.data.get(model)
-            if existing and existing.get("info", "").strip() != info.strip():
-                skipped_conflict += 1
-                continue
-            if existing:
-                # 更新已存在的记录（保留可能已有的单位）
-                existing["info"] = info
-                existing["num"] = num
-                if unit:
-                    existing["unit"] = unit
-            else:
-                self.data[model] = {"info": info, "unit": unit, "num": num}
+            new_id = str(self._next_id)
+            self.data[new_id] = {"model": model, "info": info, "unit": unit, "num": num}
+            self._next_id += 1
         save_data(self.data)
         self._refresh_table()
         self._git_push()
         s = dlg.result["stats"]
-        msg = f"成功导入 {s['imported'] - skipped_conflict} 条记录！"
-        if s["overwritten"]: msg += f"\n覆盖更新 {s['overwritten']} 条。"
+        msg = f"成功导入 {s['imported']} 条记录！"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
-        if skipped_conflict: msg += f"\n跳过 {skipped_conflict} 条同名但详情不同（未覆盖）。"
         messagebox.showinfo("导入完成", msg)
 
     # ---------- 增删改（仅管理模式）----------
     def _change_num(self, delta):
-        model = self.model_var.get().strip()
-        if model not in self.data: messagebox.showwarning("提示", "请先选择型号！"); return
+        if not self.selected_id or self.selected_id not in self.data:
+            messagebox.showwarning("提示", "请先在表格中选择一条记录！"); return
         try:
-            cur = int(self.data[model]["num"]); new = cur + delta
+            cur = int(self.data[self.selected_id]["num"]); new = cur + delta
             if new < 0: messagebox.showerror("错误", "库存不能小于 0！"); return
-            self.data[model]["num"] = new; self.num_var.set(str(new))
+            self.data[self.selected_id]["num"] = new; self.num_var.set(str(new))
             save_data(self.data); self._refresh_table(); self._git_push()
+            self.tree.selection_set(self.selected_id)
         except ValueError: messagebox.showerror("错误", "数量必须是数字！")
 
     def save_model(self):
@@ -821,34 +851,32 @@ class StockApp:
             if num < 0: messagebox.showerror("错误", "库存不能为负数！"); return
         except ValueError: messagebox.showerror("错误", "数量请输入整数！"); return
 
-        # 检查是否已存在同名但详情不同的设备
-        existing = self.data.get(model)
-        if existing and existing.get("info", "").strip() != info:
-            messagebox.showwarning(
-                "型号冲突",
-                f"型号「{model}」已存在，但产品详情不同：\n\n"
-                f"已有：{existing['info']}\n"
-                f"新添：{info}\n\n"
-                f"请使用不同的型号名称来区分这两个设备。",
-            )
-            return
-
-        is_new = model not in self.data
-        if is_new:
-            self.data[model] = {"info": info, "unit": unit, "num": num}
+        if self.selected_id and self.selected_id in self.data:
+            # 更新已选中记录
+            self.data[self.selected_id] = {"model": model, "info": info, "unit": unit, "num": num}
+            action = "更新"
         else:
-            # 相同型号相同详情 → 更新数量和单位
-            self.data[model]["num"] = num
-            self.data[model]["info"] = info
-            self.data[model]["unit"] = unit
+            # 新增记录
+            new_id = str(self._next_id)
+            self.data[new_id] = {"model": model, "info": info, "unit": unit, "num": num}
+            self._next_id += 1
+            self.selected_id = new_id
+            action = "新增"
         save_data(self.data); self._refresh_table(); self._git_push()
-        messagebox.showinfo("成功", f"型号「{model}」已{'新增' if is_new else '更新'}！")
+        # 保持选中状态
+        if self.selected_id in self.data:
+            self.tree.selection_set(self.selected_id)
+            self.tree.see(self.selected_id)
+        messagebox.showinfo("成功", f"型号「{model}」已{action}！")
 
     def _del_model(self):
-        model = self.model_var.get().strip()
-        if model not in self.data: messagebox.showwarning("提示", f"型号「{model}」不存在！"); return
-        if messagebox.askyesno("确认删除", f"确定删除型号「{model}」吗？\n\n此操作不可恢复。"):
-            del self.data[model]; save_data(self.data); self._refresh_table(); self._git_push()
+        if not self.selected_id or self.selected_id not in self.data:
+            messagebox.showwarning("提示", "请先在表格中选择一条记录！"); return
+        item = self.data[self.selected_id]
+        model = item.get("model", "")
+        if messagebox.askyesno("确认删除", f"确定删除编码 {self.selected_id} 的「{model}」吗？\n\n此操作不可恢复。"):
+            del self.data[self.selected_id]; save_data(self.data); self._refresh_table(); self._git_push()
+            self.selected_id = None
             self.model_var.set(""); self.info_var.set(""); self.unit_var.set(""); self.num_var.set("0")
 
 
