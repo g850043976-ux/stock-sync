@@ -375,7 +375,7 @@ class ImportDialog:
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.pt.yview)
         self.pt.configure(yscrollcommand=vsb.set)
         self.pt.pack(side="left", fill="both", expand=True); vsb.pack(side="right", fill="y")
-        self.pt.tag_configure("empty", foreground="#B0BEC5")
+        self.pt.tag_configure("empty", foreground="#C62828")
         self.pt.tag_configure("dup", foreground="#E65100")
         self.pt.tag_configure("even", background=COLORS["tree_even"])
         self.pt.tag_configure("odd", background=COLORS["tree_odd"])
@@ -504,13 +504,17 @@ class ImportDialog:
             messagebox.showwarning("提示", "默认数量请输入整数！", parent=self.top); return
 
         imported = []; se = sd = so = 0
-        for row in self.raw_rows:
+        failed_rows = []
+        for idx, row in enumerate(self.raw_rows):
             tax   = str(row[ti] if ti < len(row) else "").strip()
             model = str(row[mi] if mi < len(row) else "").strip()
             info  = str(row[ii] if ii < len(row) else "").strip()
             unit  = str(row[ui] if ui < len(row) else "").strip()
             num_raw = str(row[ni] if ni < len(row) else "").strip()
-            if not model: se += 1; continue
+            if not model:
+                se += 1
+                failed_rows.append(idx + 1)
+                continue
             try: num = int(num_raw)
             except ValueError: num = fallback
             if model in self.existing_models:
@@ -520,10 +524,12 @@ class ImportDialog:
             imported.append((tax, model, info, unit, num))
         if not imported:
             msg = "没有可导入的有效数据！"
-            if se: msg += f"\n\n所有 {se} 行设备型号均为空，请检查列映射是否正确。"
+            if failed_rows:
+                msg += f"\n\n失败行（设备型号为空）：{', '.join(str(r) for r in failed_rows)}"
             messagebox.showinfo("提示", msg, parent=self.top); return
         self.result = {"data": imported, "stats": {"imported": len(imported), "skipped_empty": se,
-                        "skipped_dup": sd, "overwritten": so}}
+                        "skipped_dup": sd, "overwritten": so},
+                        "failed_rows": failed_rows}
         self.top.destroy()
 
     def _cancel(self): self.top.destroy()
@@ -1194,6 +1200,8 @@ class StockApp:
             msg = f"成功减少 {merged} 条记录的数量！"
             if added: msg += f"\n{added} 条新增。"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
+        failed = dlg.result.get("failed_rows", [])
+        if failed: msg += f"\n\n失败 {len(failed)} 行（设备型号为空）：第 {', '.join(str(r) for r in failed)} 行，已跳过。"
         messagebox.showinfo("导入完成", msg)
 
     def _reset_form(self):
