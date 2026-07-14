@@ -4,21 +4,21 @@
     "model": "无线AP",
     "info": "AirEngine6760R-51",
     "unit": "台",
-    "num": 50
+    "num": 100
   },
   "7": {
     "tax": "计算机网络设备",
     "model": "无线AP",
     "info": "AirEngine5776-26",
     "unit": "台",
-    "num": 50
+    "num": 100
   },
   "8": {
     "tax": "计算机网络设备",
     "model": "防火墙",
     "info": "USG6525E-AC",
     "unit": "台",
-    "num": 60
+    "num": 120
   },
   "9": {
     "tax": "计算机网络设备",
