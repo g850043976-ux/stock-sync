@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog, simpledialog
 import csv
 import io
 import json
@@ -98,26 +98,28 @@ class GitHubManager:
     def push_data(self, callback=None):
         """后台 git add + commit + push data.json"""
         def _do():
+            # 隐藏 Windows 命令行窗口
+            si = None
+            if os.name == "nt":
+                si = subprocess.STARTUPINFO()
+                si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                si.wShowWindow = subprocess.SW_HIDE
+            git_env = {**os.environ, "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes"}
             try:
                 subprocess.run(
                     ["git", "add", "data.json"],
-                    cwd=self.repo_dir,
-                    capture_output=True, text=True,
-                    timeout=15,
-                    env={**os.environ, "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=accept-new"}
+                    cwd=self.repo_dir, capture_output=True, text=True,
+                    timeout=15, env=git_env, startupinfo=si
                 )
                 subprocess.run(
                     ["git", "commit", "-m", "update data"],
-                    cwd=self.repo_dir,
-                    capture_output=True, text=True,
-                    timeout=15
+                    cwd=self.repo_dir, capture_output=True, text=True,
+                    timeout=15, startupinfo=si
                 )
                 result = subprocess.run(
                     ["git", "push", "origin", GITHUB_BRANCH],
-                    cwd=self.repo_dir,
-                    capture_output=True, text=True,
-                    timeout=30,
-                    env={**os.environ, "GIT_SSH_COMMAND": "ssh -o StrictHostKeyChecking=accept-new"}
+                    cwd=self.repo_dir, capture_output=True, text=True,
+                    timeout=30, env=git_env, startupinfo=si
                 )
                 ok = result.returncode == 0
             except Exception:
@@ -208,6 +210,12 @@ class ModeSelectDialog:
                  fg=COLORS["text_secondary"]).pack(pady=(8, 0))
 
     def _choose(self, mode):
+        if mode == "manage":
+            pwd = simpledialog.askstring("验证密码", "请输入管理模式密码：", show="*", parent=self.top)
+            if pwd != "000000":
+                if pwd is not None:
+                    messagebox.showerror("密码错误", "密码不正确！", parent=self.top)
+                return
         self.mode = mode
         self.top.destroy()
 
@@ -480,15 +488,23 @@ class StockApp:
         self.switch_btn.bind("<Leave>", lambda e: self.switch_btn.config(fg="#8FA4B8"))
 
     def _toggle_mode(self):
-        if messagebox.askyesno("切换模式",
-                               f"确定要切换到{'查看' if self.is_manage else '管理'}模式吗？\n\n"
-                               f"应用将重新启动。"):
-            self.mode = "view" if self.is_manage else "manage"
-            self.config["mode"] = self.mode
-            save_config(self.config)
-            self.root.destroy()
-            # 重新启动
-            os.startfile(__file__)
+        if self.is_manage:
+            # 管理 → 查看：直接切换
+            if not messagebox.askyesno("切换模式", "确定要切换到查看模式吗？\n\n应用将重新启动。"):
+                return
+        else:
+            # 查看 → 管理：需要密码
+            pwd = simpledialog.askstring("验证密码", "请输入管理模式密码：", show="*", parent=self.root)
+            if pwd != "000000":
+                if pwd is not None:
+                    messagebox.showerror("密码错误", "密码不正确，无法切换到管理模式！")
+                return
+
+        self.mode = "view" if self.is_manage else "manage"
+        self.config["mode"] = self.mode
+        save_config(self.config)
+        self.root.destroy()
+        os.startfile(__file__)
 
     # ---------- 搜索栏 ----------
     def _build_search_bar(self):
