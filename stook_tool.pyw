@@ -592,11 +592,11 @@ class StockApp:
                         background="#FDD835", foreground="#333333", borderwidth=0, padding=(12,6))
         style.map("Edit.TButton", background=[("active", "#F9A825"), ("pressed", "#FBC02D")])
         style.configure("Treeview", font=(FONT_FAMILY, 10),
-                        background=COLORS["card_bg"], fieldbackground=COLORS["card_bg"],
-                        foreground=COLORS["text_primary"], rowheight=34, borderwidth=0)
+                        background=COLORS["card_bg"], fieldbackground="#B0BEC5",
+                        foreground=COLORS["text_primary"], rowheight=36, borderwidth=0)
         style.configure("Treeview.Heading", font=(FONT_FAMILY, 10, "bold"),
-                        background=COLORS["footer_bg"], foreground=COLORS["text_primary"],
-                        borderwidth=0, padding=(8,6))
+                        background="#455A64", foreground="#FFFFFF",
+                        borderwidth=1, relief="solid", padding=(10, 7))
         style.map("Treeview", background=[("selected", COLORS["tree_selected"])],
                   foreground=[("selected", COLORS["text_primary"])])
 
@@ -738,27 +738,22 @@ class StockApp:
         self.count_label.pack(side="right")
 
         ct = tk.Frame(card, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(16, 4), pady=(0, 12))
-        self.tree = ttk.Treeview(ct, columns=("id","s1","model","s2","info","s3","unit","s4","num"),
-                                 show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(ct, columns=("id","model","info","unit","num"), show="headings", selectmode="browse")
         self.tree.heading("id", text="编码", anchor="center")
-        self.tree.heading("s1", text=""); self.tree.heading("model", text="设备型号")
-        self.tree.heading("s2", text=""); self.tree.heading("info", text="产品详情")
-        self.tree.heading("s3", text=""); self.tree.heading("unit", text="单位", anchor="center")
-        self.tree.heading("s4", text=""); self.tree.heading("num", text="数量", anchor="center")
+        self.tree.heading("model", text=" 设备型号"); self.tree.heading("info", text="产品详情")
+        self.tree.heading("unit", text="单位", anchor="center"); self.tree.heading("num", text="数量", anchor="center")
         self.tree.column("id", width=50, minwidth=40, anchor="center")
-        self.tree.column("s1", width=2, stretch=False); self.tree.column("model", width=170, minwidth=100)
-        self.tree.column("s2", width=2, stretch=False); self.tree.column("info", width=390, minwidth=160)
-        self.tree.column("s3", width=2, stretch=False); self.tree.column("unit", width=60, minwidth=50, anchor="center")
-        self.tree.column("s4", width=2, stretch=False); self.tree.column("num", width=80, minwidth=60, anchor="center")
-        # 分隔线样式
-        self.tree.tag_configure("sep", background=COLORS["border"])
+        self.tree.column("model", width=170, minwidth=100)
+        self.tree.column("info", width=390, minwidth=160)
+        self.tree.column("unit", width=65, minwidth=50, anchor="center")
+        self.tree.column("num", width=80, minwidth=60, anchor="center")
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True); vsb.pack(side="right", fill="y")
         if self.is_manage:
             self.tree.bind("<<TreeviewSelect>>", self._select_row)
-        self.tree.tag_configure("even", background=COLORS["tree_even"])
-        self.tree.tag_configure("odd", background=COLORS["tree_odd"])
+        self.tree.tag_configure("even", background="#F5F5F5")
+        self.tree.tag_configure("odd", background=COLORS["card_bg"])
         self.tree.tag_configure("zero_stock", foreground="#B0BEC5")
 
     # ---------- 底部状态栏 ----------
@@ -817,8 +812,7 @@ class StockApp:
             tag = "even" if idx % 2 == 0 else "odd"
             if item["num"] == 0: tag = ("zero_stock", tag)
             self.tree.insert("", "end", iid=rid,
-                             values=(rid, " ", item.get("model",""), " ", item.get("info",""),
-                                     " ", item.get("unit",""), " ", item["num"]),
+                             values=(rid, item.get("model",""), item.get("info",""), item.get("unit",""), item["num"]),
                              tags=tag)
         cnt = len(self.data)
         self.count_label.config(text=f"共 {cnt} 条记录" if cnt else "暂无数据")
@@ -831,10 +825,9 @@ class StockApp:
         if not sel: return
         self.selected_id = sel[0]  # iid 即为数据 key
         item = self.tree.item(self.selected_id)
-        # values: (id, sep, model, sep, info, sep, unit, sep, num)
         vals = item["values"]
-        self.model_var.set(vals[2]); self.info_var.set(vals[4])
-        self.unit_var.set(vals[6]); self.num_var.set(str(vals[8]))
+        self.model_var.set(vals[1]); self.info_var.set(vals[2])
+        self.unit_var.set(vals[3]); self.num_var.set(str(vals[4]))
 
     # ---------- 搜索 ----------
     def search_item(self):
