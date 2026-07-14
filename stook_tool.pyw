@@ -84,6 +84,7 @@ def migrate_data(data):
     new_data = {}
     for i, (model, item) in enumerate(data.items(), 1):
         new_data[str(i)] = {
+            "tax": item.get("tax", ""),
             "model": model,
             "info": item.get("info", ""),
             "unit": item.get("unit", ""),
@@ -263,6 +264,7 @@ class ModeSelectDialog:
 # ============================================================
 class ImportDialog:
     MODEL_KEYWORDS = ["型号", "设备型号", "设备", "名称", "model", "name", "产品型号", "物料"]
+    TAX_KEYWORDS   = ["税收分类", "税收", "税率", "tax", "分类"]
     INFO_KEYWORDS  = ["详情", "产品详情", "描述", "项目", "项目名称", "info", "description", "备注", "说明", "规格"]
     UNIT_KEYWORDS  = ["单位", "unit", "计量单位"]
     NUM_KEYWORDS   = ["数量", "库存数量", "库存", "当前库存", "num", "quantity", "qty"]
@@ -272,6 +274,7 @@ class ImportDialog:
         self.headers = list(headers)
         self.raw_rows = raw_rows
         self.existing_models = existing_models
+        self.tax_col = self._guess(self.TAX_KEYWORDS)
         self.unit_col = self._guess(self.UNIT_KEYWORDS)
         self.model_col = self._guess(self.MODEL_KEYWORDS)
         self.info_col  = self._guess(self.INFO_KEYWORDS)
@@ -317,14 +320,16 @@ class ImportDialog:
                  bg=COLORS["card_bg"], fg=COLORS["text_primary"]).pack(anchor="w", pady=(0, 8))
 
         r1 = tk.Frame(inner, bg=COLORS["card_bg"]); r1.pack(fill="x", pady=(0, 6))
-        for text, attr, w in [("设备型号 →", "model_combo", 18), ("产品详情 →", "info_combo", 24),
-                               ("单位 →", "unit_combo", 8), ("库存数量 →", "num_combo", 12)]:
+        for text, attr, w in [("税收分类 →", "tax_combo", 12), ("设备型号 →", "model_combo", 16),
+                               ("产品详情 →", "info_combo", 22), ("单位 →", "unit_combo", 8),
+                               ("库存数量 →", "num_combo", 10)]:
             tk.Label(r1, text=text, font=(FONT_FAMILY, 10),
                      bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(side="left", padx=(0, 4))
             cb = ttk.Combobox(r1, values=self.headers, state="readonly", width=w)
             cb.pack(side="left", padx=(0, 10))
             setattr(self, attr, cb)
             cb.bind("<<ComboboxSelected>>", lambda e: self._refresh())
+        self.tax_combo.current(self.tax_col)
         self.model_combo.current(self.model_col)
         self.info_combo.current(self.info_col)
         self.unit_combo.current(self.unit_col)
@@ -354,9 +359,9 @@ class ImportDialog:
         self.pcnt.pack(side="right")
 
         ct = tk.Frame(c2, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(14,4), pady=(0,10))
-        self.pt = ttk.Treeview(ct, columns=("row","model","info","unit","num"), show="headings", selectmode="none", height=10)
-        for c, t, w in [("row","行",40), ("model","设备型号",170), ("info","产品详情",320),
-                         ("unit","单位",50), ("num","数量",64)]:
+        self.pt = ttk.Treeview(ct, columns=("row","tax","model","info","unit","num"), show="headings", selectmode="none", height=10)
+        for c, t, w in [("row","行",36), ("tax","税收分类",80), ("model","设备型号",140),
+                         ("info","产品详情",260), ("unit","单位",44), ("num","数量",54)]:
             self.pt.heading(c, text=t, anchor="center" if c in ("row","unit","num") else "w")
             self.pt.column(c, width=w, anchor="center" if c in ("row","unit","num") else "w", stretch=c=="info")
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.pt.yview)
@@ -376,18 +381,20 @@ class ImportDialog:
 
     def _refresh(self):
         for row in self.pt.get_children(): self.pt.delete(row)
+        ti = self.tax_combo.current()
         mi, ii, ui, ni = (self.model_combo.current(), self.info_combo.current(),
                            self.unit_combo.current(), self.num_combo.current())
         valid = empty = dup = 0
         limit = min(len(self.raw_rows), 100)
         for idx, row in enumerate(self.raw_rows[:limit]):
+            tax   = str(row[ti] if ti < len(row) else "").strip()
             model = str(row[mi] if mi < len(row) else "").strip()
             info  = str(row[ii] if ii < len(row) else "").strip()
             unit  = str(row[ui] if ui < len(row) else "").strip()
             num_raw = str(row[ni] if ni < len(row) else "").strip()
             if not model:
                 empty += 1
-                self.pt.insert("", "end", values=(idx+1, "(空型号，跳过)", info or "—", unit, "—"),
+                self.pt.insert("", "end", values=(idx+1, tax or "", "(空型号，跳过)", info or "—", unit, "—"),
                                tags=("empty", "even" if idx%2==0 else "odd")); continue
             try: num = int(num_raw)
             except ValueError:
@@ -396,7 +403,7 @@ class ImportDialog:
             tags = ["even"] if idx%2==0 else ["odd"]
             if model in self.existing_models: tags.append("dup"); dup += 1
             valid += 1
-            self.pt.insert("", "end", values=(idx+1, model, info or "(空)", unit or "", num), tags=tuple(tags))
+            self.pt.insert("", "end", values=(idx+1, tax or "", model, info or "(空)", unit or "", num), tags=tuple(tags))
         total = len(self.raw_rows)
         self.pcnt.config(text=f"显示前 {limit} 行" if total > limit else f"共 {total} 行")
         parts = [f"共 {total} 行", f"有效 {valid} 条"]
@@ -405,12 +412,14 @@ class ImportDialog:
         self.slbl.config(text=" | ".join(parts))
 
     def _confirm(self):
+        ti = self.tax_combo.current()
         mi, ii, ui, ni = (self.model_combo.current(), self.info_combo.current(),
                            self.unit_combo.current(), self.num_combo.current())
         try: fallback = int(self.default_num.get().strip())
         except ValueError: messagebox.showwarning("提示", "默认数量请输入整数！", parent=self.top); return
         imported = []; se = sd = so = 0
         for row in self.raw_rows:
+            tax   = str(row[ti] if ti < len(row) else "").strip()
             model = str(row[mi] if mi < len(row) else "").strip()
             info  = str(row[ii] if ii < len(row) else "").strip()
             unit  = str(row[ui] if ui < len(row) else "").strip()
@@ -420,7 +429,7 @@ class ImportDialog:
             except ValueError: num = fallback
             if model in self.existing_models and self.dup_strategy.get() == "skip": sd += 1; continue
             if model in self.existing_models: so += 1
-            imported.append((model, info, unit, num))
+            imported.append((tax, model, info, unit, num))
         if not imported: messagebox.showinfo("提示", "没有可导入的有效数据！", parent=self.top); return
         self.result = {"data": imported, "stats": {"imported": len(imported), "skipped_empty": se,
                         "skipped_dup": sd, "overwritten": so}}
@@ -433,22 +442,22 @@ class ImportDialog:
 # 修改弹窗
 # ============================================================
 class EditDialog:
-    """点击"修改"按钮后弹出，编辑设备型号、产品详情、单位"""
+    """点击"修改"按钮后弹出，编辑税收分类、设备型号、产品详情、单位"""
 
-    def __init__(self, parent, model, info, unit):
+    def __init__(self, parent, tax, model, info, unit):
         self.result = None
         self.top = tk.Toplevel()
         self.top.title("修改型号信息")
-        self.top.geometry("460x240")
+        self.top.geometry("460x300")
         self.top.resizable(False, False)
         self.top.transient(parent)
         self.top.grab_set()
         self.top.configure(bg=COLORS["bg"])
         self._center(parent)
-        self._build(model, info, unit)
+        self._build(tax, model, info, unit)
         self.top.wait_window()
 
-    def _build(self, model, info, unit):
+    def _build(self, tax, model, info, unit):
         hdr = tk.Frame(self.top, bg=COLORS["header_bg"], height=38)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
         tk.Label(hdr, text="✏️  修改型号信息", font=(FONT_FAMILY, 12, "bold"),
@@ -460,6 +469,16 @@ class EditDialog:
 
         form = tk.Frame(card, bg=COLORS["card_bg"])
         form.pack(fill="x", padx=16, pady=14)
+
+        # 税收分类
+        tk.Label(form, text="税收分类", font=(FONT_FAMILY, 10),
+                 bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(anchor="w")
+        self.tax_var = tk.StringVar(value=tax)
+        tk.Entry(form, textvariable=self.tax_var, font=(FONT_FAMILY, 10),
+                 bg=COLORS["card_bg"], fg=COLORS["text_primary"],
+                 relief="solid", bd=1, highlightthickness=1,
+                 highlightbackground=COLORS["border"],
+                 highlightcolor=COLORS["primary"]).pack(fill="x", ipady=4, pady=(0, 10))
 
         # 设备型号
         tk.Label(form, text="设备型号", font=(FONT_FAMILY, 10),
@@ -504,6 +523,7 @@ class EditDialog:
             messagebox.showwarning("提示", "设备型号不能为空！", parent=self.top)
             return
         self.result = {
+            "tax": self.tax_var.get().strip(),
             "model": model,
             "info": self.info_var.get().strip(),
             "unit": self.unit_var.get().strip(),
@@ -517,8 +537,8 @@ class EditDialog:
         self.top.update_idletasks()
         pw = parent.winfo_width(); ph = parent.winfo_height()
         px = parent.winfo_rootx(); py = parent.winfo_rooty()
-        x = px + (pw - 460) // 2; y = py + (ph - 240) // 2
-        self.top.geometry(f"460x240+{max(0,x)}+{max(0,y)}")
+        x = px + (pw - 460) // 2; y = py + (ph - 300) // 2
+        self.top.geometry(f"460x300+{max(0,x)}+{max(0,y)}")
 
 
 # ============================================================
@@ -688,8 +708,9 @@ class StockApp:
 
         form = tk.Frame(card, bg=COLORS["card_bg"]); form.pack(fill="x", padx=16, pady=(0, 6))
         for c, label, var, stretch in [
-            (0, "设备型号", "model_var", True), (1, "产品详情", "info_var", True),
-            (2, "单位", "unit_var", False), (3, "库存数量", "num_var", False)
+            (0, "税收分类", "tax_var", True), (1, "设备型号", "model_var", True),
+            (2, "产品详情", "info_var", True), (3, "单位", "unit_var", False),
+            (4, "库存数量", "num_var", False)
         ]:
             tk.Label(form, text=label, font=(FONT_FAMILY, 10),
                      bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).grid(
@@ -706,7 +727,7 @@ class StockApp:
                      relief="solid", bd=1, highlightthickness=1,
                      highlightbackground=COLORS["border"], highlightcolor=COLORS["primary"], **kw).grid(
                 row=1, column=c, sticky="ew" if stretch else "w", padx=(0, 10), pady=(0, 8), ipady=4)
-        form.columnconfigure(0, weight=1); form.columnconfigure(1, weight=2)
+        form.columnconfigure(0, weight=1); form.columnconfigure(1, weight=1); form.columnconfigure(2, weight=2)
 
         bb = tk.Frame(card, bg=COLORS["card_bg"]); bb.pack(fill="x", padx=16, pady=(0, 12))
         ttk.Button(bb, text="➕ 新增型号", style="Primary.TButton", command=self.save_model).pack(side="left", padx=(0, 8))
@@ -739,15 +760,17 @@ class StockApp:
         self.count_label.pack(side="right")
 
         ct = tk.Frame(card, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(16, 4), pady=(0, 12))
-        self.tree = ttk.Treeview(ct, columns=("id","model","info","unit","num"), show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(ct, columns=("id","tax","model","info","unit","num"), show="headings", selectmode="browse")
         self.tree.heading("id", text="编码", anchor="center")
-        self.tree.heading("model", text="设备型号"); self.tree.heading("info", text="产品详情")
+        self.tree.heading("tax", text="税收分类"); self.tree.heading("model", text="设备型号")
+        self.tree.heading("info", text="产品详情")
         self.tree.heading("unit", text="单位", anchor="center"); self.tree.heading("num", text="数量", anchor="center")
         self.tree.column("id", width=50, minwidth=40, anchor="center")
-        self.tree.column("model", width=170, minwidth=100)
-        self.tree.column("info", width=390, minwidth=160)
-        self.tree.column("unit", width=60, minwidth=50, anchor="center")
-        self.tree.column("num", width=80, minwidth=60, anchor="center")
+        self.tree.column("tax", width=100, minwidth=70)
+        self.tree.column("model", width=150, minwidth=90)
+        self.tree.column("info", width=330, minwidth=140)
+        self.tree.column("unit", width=50, minwidth=40, anchor="center")
+        self.tree.column("num", width=70, minwidth=50, anchor="center")
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True); vsb.pack(side="right", fill="y")
@@ -813,7 +836,8 @@ class StockApp:
             tag = "even" if idx % 2 == 0 else "odd"
             if item["num"] == 0: tag = ("zero_stock", tag)
             self.tree.insert("", "end", iid=rid,
-                             values=(rid, item.get("model",""), item.get("info",""), item.get("unit",""), item["num"]),
+                             values=(rid, item.get("tax",""), item.get("model",""), item.get("info",""),
+                                     item.get("unit",""), item["num"]),
                              tags=tag)
         cnt = len(self.data)
         self.count_label.config(text=f"共 {cnt} 条记录" if cnt else "暂无数据")
@@ -826,8 +850,9 @@ class StockApp:
         if not sel: return
         self.selected_id = sel[0]  # iid 即为数据 key
         item = self.tree.item(self.selected_id)
-        _, model, info, unit, num = item["values"]
-        self.model_var.set(model); self.info_var.set(info); self.unit_var.set(unit); self.num_var.set(str(num))
+        _, tax, model, info, unit, num = item["values"]
+        self.tax_var.set(tax); self.model_var.set(model); self.info_var.set(info)
+        self.unit_var.set(unit); self.num_var.set(str(num))
 
     # ---------- 搜索 ----------
     def search_item(self):
@@ -841,7 +866,8 @@ class StockApp:
                 tag = "even" if cnt % 2 == 0 else "odd"
                 if item["num"] == 0: tag = ("zero_stock", tag)
                 self.tree.insert("", "end", iid=rid,
-                                 values=(rid, model, item.get("info",""), item.get("unit",""), item["num"]),
+                                 values=(rid, item.get("tax",""), model, item.get("info",""),
+                                         item.get("unit",""), item["num"]),
                                  tags=tag)
                 cnt += 1
         self.count_label.config(text=f"搜索到 {cnt} 条结果" if keyword else "")
@@ -924,9 +950,9 @@ class StockApp:
         dlg = ImportDialog(self.root, headers, data_rows, existing_models)
         self.root.wait_window(dlg.top)
         if dlg.result is None: return
-        for model, info, unit, num in dlg.result["data"]:
+        for tax, model, info, unit, num in dlg.result["data"]:
             new_id = str(self._next_id)
-            self.data[new_id] = {"model": model, "info": info, "unit": unit, "num": num}
+            self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
             self._next_id += 1
         save_data(self.data)
         self._refresh_table()
@@ -941,7 +967,7 @@ class StockApp:
         if not self.selected_id or self.selected_id not in self.data:
             messagebox.showwarning("提示", "请先在表格中点击选择一条记录！"); return
         item = self.data[self.selected_id]
-        text = f"{item.get('model','')} {item.get('info','')} {item.get('unit','')}"
+        text = f"{item.get('tax','')} {item.get('model','')} {item.get('info','')} {item.get('unit','')}"
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         messagebox.showinfo("已复制", f"已复制到剪贴板：\n{text}")
@@ -977,8 +1003,9 @@ class StockApp:
 
     def save_model(self):
         """新增型号 —— 永远创建新记录，不更新已有"""
-        model = self.model_var.get().strip(); info = self.info_var.get().strip()
-        unit = self.unit_var.get().strip(); num_text = self.num_var.get().strip()
+        tax = self.tax_var.get().strip(); model = self.model_var.get().strip()
+        info = self.info_var.get().strip(); unit = self.unit_var.get().strip()
+        num_text = self.num_var.get().strip()
         if not model: messagebox.showerror("错误", "型号不能为空！"); return
         try:
             num = int(num_text)
@@ -987,13 +1014,14 @@ class StockApp:
 
         if not messagebox.askyesno("确认新增",
                                    f"确定新增型号「{model}」吗？\n\n"
+                                   f"税收分类：{tax or '(空)'}\n"
                                    f"产品详情：{info or '(空)'}\n"
                                    f"单位：{unit or '(空)'}\n"
                                    f"库存数量：{num}"):
             return
 
         new_id = str(self._next_id)
-        self.data[new_id] = {"model": model, "info": info, "unit": unit, "num": num}
+        self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
         self._next_id += 1
         self.selected_id = new_id
         save_data(self.data); self._refresh_table(); self._git_push()
@@ -1006,10 +1034,11 @@ class StockApp:
         if not self.selected_id or self.selected_id not in self.data:
             messagebox.showwarning("提示", "请先在表格中点击选择一条记录！"); return
         item = self.data[self.selected_id]
-        dlg = EditDialog(self.root, item.get("model", ""), item.get("info", ""), item.get("unit", ""))
+        dlg = EditDialog(self.root, item.get("tax", ""), item.get("model", ""), item.get("info", ""), item.get("unit", ""))
         if dlg.result is None:
             return
         # 更新记录
+        self.data[self.selected_id]["tax"] = dlg.result["tax"]
         self.data[self.selected_id]["model"] = dlg.result["model"]
         self.data[self.selected_id]["info"] = dlg.result["info"]
         self.data[self.selected_id]["unit"] = dlg.result["unit"]
@@ -1017,6 +1046,7 @@ class StockApp:
         self.tree.selection_set(self.selected_id)
         self.tree.see(self.selected_id)
         # 同步更新编辑面板
+        self.tax_var.set(dlg.result["tax"])
         self.model_var.set(dlg.result["model"])
         self.info_var.set(dlg.result["info"])
         self.unit_var.set(dlg.result["unit"])
@@ -1030,7 +1060,8 @@ class StockApp:
         if messagebox.askyesno("确认删除", f"确定删除编码 {self.selected_id} 的「{model}」吗？\n\n此操作不可恢复。"):
             del self.data[self.selected_id]; save_data(self.data); self._refresh_table(); self._git_push()
             self.selected_id = None
-            self.model_var.set(""); self.info_var.set(""); self.unit_var.set(""); self.num_var.set("0")
+            self.tax_var.set(""); self.model_var.set(""); self.info_var.set("")
+            self.unit_var.set(""); self.num_var.set("0")
 
 
 if __name__ == "__main__":
