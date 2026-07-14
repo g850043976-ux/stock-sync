@@ -882,6 +882,7 @@ class StockApp:
         self.tree.tag_configure("even", background=COLORS["tree_even"])
         self.tree.tag_configure("odd", background=COLORS["tree_odd"])
         self.tree.tag_configure("zero_stock", foreground="#B0BEC5")
+        self.tree.tag_configure("negative", foreground="#C62828")
         if self.is_manage:
             self.batch_confirm_btn.pack_forget()  # 初始隐藏
 
@@ -939,7 +940,8 @@ class StockApp:
         for row in self.tree.get_children(): self.tree.delete(row)
         for idx, (rid, item) in enumerate(self.data.items()):
             tag = "even" if idx % 2 == 0 else "odd"
-            if item["num"] == 0: tag = ("zero_stock", tag)
+            if item["num"] < 0: tag = ("negative", tag)
+            elif item["num"] == 0: tag = ("zero_stock", tag)
             chk = "☑" if self.batch_mode and rid in self.batch_checked else ""
             self.tree.insert("", "end", iid=rid,
                              values=(chk, rid, item.get("tax",""), item.get("model",""), item.get("info",""),
@@ -1020,7 +1022,8 @@ class StockApp:
             model = item.get("model", "")
             if keyword in model.lower() or keyword in item.get("info","").lower():
                 tag = "even" if cnt % 2 == 0 else "odd"
-                if item["num"] == 0: tag = ("zero_stock", tag)
+                if item["num"] < 0: tag = ("negative", tag)
+                elif item["num"] == 0: tag = ("zero_stock", tag)
                 chk = "☑" if self.batch_mode and rid in self.batch_checked else ""
                 self.tree.insert("", "end", iid=rid,
                                  values=(chk, rid, item.get("tax",""), model, item.get("info",""),
@@ -1127,7 +1130,7 @@ class StockApp:
                     self._next_id += 1
                     added += 1
             else:
-                # "减少"模式：三字段全匹配 → 减少数量，否则报错
+                # "减少"模式：三字段全匹配 → 减少数量
                 found = False
                 for rid, item in self.data.items():
                     if (item.get("tax","") == tax and item.get("model","") == model
@@ -1135,11 +1138,9 @@ class StockApp:
                         if item["num"] < num:
                             if not messagebox.askyesno("库存不足",
                                     f"「{model}」当前库存 {item['num']}，不足以减少 {num}。\n\n"
-                                    f"是否将库存清零？", parent=self.root):
+                                    f"是否继续减少？（库存将显示为负数）", parent=self.root):
                                 break
-                            item["num"] = 0
-                        else:
-                            item["num"] -= num
+                        item["num"] -= num
                         found = True
                         merged += 1
                         break
@@ -1155,10 +1156,14 @@ class StockApp:
                     else: details.append("产品详情：未找到「{0}」".format(info or "(空)"))
                     if model_match: details.append("设备型号：已存在 ✓")
                     else: details.append("设备型号：未找到「{0}」".format(model or "(空)"))
-                    messagebox.showwarning("无法减少",
-                        f"未找到与「{model or '(空型号)'}」完全匹配的记录，无法减少库存。\n\n"
-                        + "\n".join(details) + "\n\n"
-                        "请检查数据或改用\"增加\"模式。", parent=self.root)
+                    if messagebox.askyesno("未找到匹配记录",
+                            f"未找到与「{model or '(空型号)'}」完全匹配的记录。\n\n"
+                            + "\n".join(details) + "\n\n"
+                            "是否需要新增一条负数库存记录？", parent=self.root):
+                        new_id = str(self._next_id)
+                        self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": -num}
+                        self._next_id += 1
+                        added += 1
         save_data(self.data)
         self._refresh_table()
         self._git_push()
