@@ -271,6 +271,7 @@ class ImportDialog:
 
     def __init__(self, parent, headers, raw_rows, existing_models):
         self.result = None
+        self.parent = parent  # 保存父窗口引用（用于剪贴板操作）
         self.headers = list(headers)
         self.raw_rows = raw_rows
         self.existing_models = existing_models
@@ -457,7 +458,7 @@ class ImportDialog:
     def _paste_from_clipboard(self):
         """从剪贴板读取并解析数据"""
         try:
-            text = self.top.clipboard_get()
+            text = self.parent.clipboard_get()
         except tk.TclError:
             messagebox.showwarning("提示", "剪贴板为空！", parent=self.top); return
         if not text.strip():
