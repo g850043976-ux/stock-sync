@@ -1239,7 +1239,7 @@ class StockApp:
         item = self.data[self.selected_id]
         if item.get("num", 0) == 0:
             messagebox.showwarning("提示", "库存数量为\"0\"，请询问财务", parent=self.root); return
-        text = f"{item.get('tax','')}   {item.get('info','')}   {item.get('model','')}   {item.get('unit','')}"
+        text = f"{item.get('tax','')}   {item.get('model','')}   {item.get('info','')}   {item.get('unit','')}"
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         messagebox.showinfo("已复制", f"已复制到剪贴板：\n{text}")
