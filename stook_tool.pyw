@@ -274,24 +274,31 @@ class ImportDialog:
         self.headers = list(headers)
         self.raw_rows = raw_rows
         self.existing_models = existing_models
-        self.tax_col = self._guess(self.TAX_KEYWORDS)
-        self.unit_col = self._guess(self.UNIT_KEYWORDS)
-        self.model_col = self._guess(self.MODEL_KEYWORDS)
-        self.info_col  = self._guess(self.INFO_KEYWORDS)
-        self.num_col   = self._guess(self.NUM_KEYWORDS)
-        if len(self.headers) >= 2 and self.info_col == self.model_col:
-            self.info_col = 1 if self.model_col == 0 else 0
-        if len(self.headers) >= 3 and (self.num_col == self.model_col or self.num_col == self.info_col):
-            for i in range(len(self.headers)):
-                if i not in (self.model_col, self.info_col):
-                    self.num_col = i; break
+        n = len(self.headers)
+        self.tax_col   = self._guess(self.TAX_KEYWORDS, 0)
+        self.model_col = self._guess(self.MODEL_KEYWORDS, min(1, n-1))
+        self.info_col  = self._guess(self.INFO_KEYWORDS, min(2, n-1))
+        self.unit_col  = self._guess(self.UNIT_KEYWORDS, min(3, n-1))
+        self.num_col   = self._guess(self.NUM_KEYWORDS, min(4, n-1))
+        # 确保所有列不重复
+        used = set()
+        for attr in ("tax_col", "info_col", "model_col", "unit_col", "num_col"):
+            col = getattr(self, attr)
+            while col in used and col < n - 1:
+                col += 1
+            if col in used:
+                for i in range(n):
+                    if i not in used:
+                        col = i; break
+            used.add(col)
+            setattr(self, attr, col)
         self._build(); self._refresh()
 
-    def _guess(self, keywords):
+    def _guess(self, keywords, default=0):
         for kw in keywords:
             for i, h in enumerate(self.headers):
                 if kw.lower() in str(h).lower().strip(): return i
-        return 0
+        return default
 
     def _build(self):
         self.top = tk.Toplevel()
@@ -989,7 +996,7 @@ class StockApp:
         for line in lines:
             parts = next(csv.reader(io.StringIO(line))) if delim == "," else line.split(delim)
             rows.append(parts)
-        first = rows[0]; hk = ["型号","名称","详情","数量","库存","model","name","info","num","qty"]
+        first = rows[0]; hk = ["型号","名称","详情","数量","库存","单位","税收","分类","model","name","info","num","qty","unit","tax"]
         looks_header = any(any(kw in str(c).lower() for kw in hk) for c in first)
         headers, data = (rows[0], rows[1:]) if looks_header and len(rows) > 1 else (
             [f"列 {chr(65+i)}" if i < 26 else f"列 {i+1}" for i in range(max(len(r) for r in rows))], rows)
