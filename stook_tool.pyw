@@ -39,7 +39,7 @@ COLORS = {
     "text_primary":  "#1A1A2E",
     "text_secondary":"#5A6B7F",
     "border":        "#DDE4EE",
-    "tree_even":     "#F3F4F6",
+    "tree_even":     "#F7F9FC",
     "tree_odd":      "#FFFFFF",
     "tree_selected": "#D4E4F7",
     "online":        "#2E7D32",
@@ -592,7 +592,7 @@ class StockApp:
                         background="#FDD835", foreground="#333333", borderwidth=0, padding=(12,6))
         style.map("Edit.TButton", background=[("active", "#F9A825"), ("pressed", "#FBC02D")])
         style.configure("Treeview", font=(FONT_FAMILY, 10),
-                        background=COLORS["card_bg"], fieldbackground="#e5e7eb",
+                        background=COLORS["card_bg"], fieldbackground=COLORS["card_bg"],
                         foreground=COLORS["text_primary"], rowheight=34, borderwidth=0)
         style.configure("Treeview.Heading", font=(FONT_FAMILY, 10, "bold"),
                         background=COLORS["footer_bg"], foreground=COLORS["text_primary"],
@@ -722,6 +722,7 @@ class StockApp:
         ttk.Button(bb, text="－", style="Warning.TButton", width=3,
                    command=lambda: self._apply_delta(-1)).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="修改", style="Edit.TButton", command=self._edit_model).pack(side="left", padx=(0, 8))
+        ttk.Button(bb, text="📋 提取", style="Outline.TButton", command=self._copy_row).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="🗑 删除型号", style="Danger.TButton", command=self._del_model).pack(side="right")
 
     # ---------- 表格 ----------
@@ -934,6 +935,16 @@ class StockApp:
         msg = f"成功导入 {s['imported']} 条记录！"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
         messagebox.showinfo("导入完成", msg)
+
+    def _copy_row(self):
+        """将选中行内容复制为空格分隔的文本"""
+        if not self.selected_id or self.selected_id not in self.data:
+            messagebox.showwarning("提示", "请先在表格中点击选择一条记录！"); return
+        item = self.data[self.selected_id]
+        text = f"{self.selected_id} {item.get('model','')} {item.get('info','')} {item.get('unit','')} {item.get('num',0)}"
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        messagebox.showinfo("已复制", f"已复制到剪贴板：\n{text}")
 
     # ---------- 增删改（仅管理模式）----------
     def _apply_delta(self, sign):
