@@ -1184,6 +1184,8 @@ class StockApp:
         if not self.selected_id or self.selected_id not in self.data:
             messagebox.showwarning("提示", "请先在表格中点击选择一条记录！"); return
         item = self.data[self.selected_id]
+        if item.get("num", 0) == 0:
+            messagebox.showwarning("提示", "库存数量为\"0\"，请询问财务", parent=self.root); return
         text = f"{item.get('tax','')} {item.get('info','')} {item.get('model','')} {item.get('unit','')}"
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
