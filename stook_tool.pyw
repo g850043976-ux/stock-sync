@@ -539,7 +539,7 @@ class EditDialog:
         self.result = None
         self.top = tk.Toplevel()
         self.top.title("修改型号信息")
-        self.top.geometry("460x300")
+        self.top.geometry("460x380")
         self.top.resizable(False, False)
         self.top.transient(parent)
         self.top.grab_set()
@@ -629,7 +629,7 @@ class EditDialog:
         pw = parent.winfo_width(); ph = parent.winfo_height()
         px = parent.winfo_rootx(); py = parent.winfo_rooty()
         x = px + (pw - 460) // 2; y = py + (ph - 300) // 2
-        self.top.geometry(f"460x300+{max(0,x)}+{max(0,y)}")
+        self.top.geometry(f"460x380+{max(0,x)}+{max(0,y)}")
 
 
 # ============================================================
