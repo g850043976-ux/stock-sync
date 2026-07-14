@@ -208,5 +208,33 @@
     "info": "PAC150S12-R",
     "unit": "套",
     "num": 1
+  },
+  "31": {
+    "tax": "计算机配套产品",
+    "model": "240W交流电源模块",
+    "info": "PAC240S56-CN",
+    "unit": "套",
+    "num": -40
+  },
+  "32": {
+    "tax": "计算机配套产品",
+    "model": "SFP+高速专用堆叠电缆-1.5M",
+    "info": "SFP+STACK-CU1M5",
+    "unit": "套",
+    "num": -202
+  },
+  "33": {
+    "tax": "软件",
+    "model": "N1-智简园区SD-WAN基础包(包含SD-WAN),AR6100系列,每设备",
+    "info": "N1-LANWAN-F-AR6100",
+    "unit": "套",
+    "num": -8
+  },
+  "34": {
+    "tax": "软件",
+    "model": "S67系列,VxLAN软件授权License,每设备",
+    "info": "L-VxLAN-S67",
+    "unit": "套",
+    "num": -12
   }
 }
