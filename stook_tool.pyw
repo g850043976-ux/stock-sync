@@ -980,14 +980,24 @@ class StockApp:
         self.batch_checked.clear()
         if self.batch_mode:
             self.tree.column("chk", width=36, minwidth=36)
-            self.tree.heading("chk", text="☐")
+            self.tree.heading("chk", text="☐", command=self._toggle_select_all)
             self.batch_btn.config(text="取消")
             self.batch_confirm_btn.pack(side="right", padx=(0, 6))
         else:
             self.tree.column("chk", width=0, minwidth=0)
+            self.tree.heading("chk", text="☐", command="")
             self.batch_btn.config(text="🗑 批量删除")
             self.batch_confirm_btn.pack_forget()
             self.selected_id = None
+        self._refresh_table()
+
+    def _toggle_select_all(self):
+        """全选/取消全选"""
+        total = len(self.data)
+        if len(self.batch_checked) >= total:
+            self.batch_checked.clear()
+        else:
+            self.batch_checked = set(self.data.keys())
         self._refresh_table()
 
     def _batch_delete(self):
