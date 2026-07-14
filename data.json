@@ -68,5 +68,12 @@
     "info": "LS-5130S-28S-EI-H1",
     "unit": "台",
     "num": 1
+  },
+  "16": {
+    "tax": "计算机网络设备",
+    "model": "无线AP",
+    "info": "AirEngine6760R-51",
+    "unit": "台",
+    "num": 50
   }
 }
