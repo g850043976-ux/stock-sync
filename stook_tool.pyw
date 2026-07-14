@@ -465,13 +465,19 @@ class ImportDialog:
             info  = str(row[ii] if ii < len(row) else "").strip()
             unit  = str(row[ui] if ui < len(row) else "").strip()
             num_raw = str(row[ni] if ni < len(row) else "").strip()
+            # 判断是否全空行
+            all_empty = not any(str(row[i] if i < len(row) else "").strip() for i in range(len(row)))
+            if all_empty:
+                empty += 1
+                self.pt.insert("", "end", values=(idx+1, "", "", "", "", ""),
+                               tags=("empty", "even" if idx%2==0 else "odd")); continue
             if not model:
                 empty += 1
-                self.pt.insert("", "end", values=(idx+1, tax or "", "(空型号，跳过)", info or "(空)", unit, "—"),
+                self.pt.insert("", "end", values=(idx+1, tax or "", "", info or "", unit or "", "—"),
                                tags=("empty", "even" if idx%2==0 else "odd")); continue
             if not info:
                 empty += 1
-                self.pt.insert("", "end", values=(idx+1, tax or "", model, "(空详情，跳过)", unit, "—"),
+                self.pt.insert("", "end", values=(idx+1, tax or "", model, "", unit or "", "—"),
                                tags=("empty", "even" if idx%2==0 else "odd")); continue
             try: num = int(num_raw)
             except ValueError:
