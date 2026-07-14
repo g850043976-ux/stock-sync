@@ -263,15 +263,15 @@ class ModeSelectDialog:
 # 导入预览对话框
 # ============================================================
 class ImportDialog:
-    MODEL_KEYWORDS = ["型号", "设备型号", "设备", "名称", "model", "name", "产品型号", "物料"]
+    MODEL_KEYWORDS = ["规格型号", "设备型号", "型号", "设备", "model", "name", "产品型号", "物料"]
     TAX_KEYWORDS   = ["税收分类", "税收", "税率", "tax", "分类"]
-    INFO_KEYWORDS  = ["详情", "产品详情", "描述", "项目", "项目名称", "info", "description", "备注", "说明", "规格"]
+    INFO_KEYWORDS  = ["货物或应税劳务", "货物", "劳务", "服务名称", "产品详情", "产品名称",
+                       "详情", "描述", "项目名称", "项目", "info", "description", "备注", "说明"]
     UNIT_KEYWORDS  = ["单位", "unit", "计量单位"]
     NUM_KEYWORDS   = ["数量", "库存数量", "库存", "当前库存", "num", "quantity", "qty"]
 
     def __init__(self, parent, headers, raw_rows, existing_models):
         self.result = None
-        self.parent = parent  # 保存父窗口引用（用于剪贴板操作）
         self.headers = list(headers)
         self.raw_rows = raw_rows
         self.existing_models = existing_models
@@ -304,8 +304,8 @@ class ImportDialog:
     def _build(self):
         self.top = tk.Toplevel()
         self.top.title("导入预览")
-        self.top.geometry("780x650")
-        self.top.minsize(640, 520)
+        self.top.geometry("780x620")
+        self.top.minsize(640, 500)
         self.top.transient(self.top.master)
         self.top.grab_set()
         self.top.configure(bg=COLORS["bg"])
@@ -313,15 +313,12 @@ class ImportDialog:
         m = self.top.master
         pw, ph = m.winfo_width(), m.winfo_height()
         px, py = m.winfo_rootx(), m.winfo_rooty()
-        self.top.geometry(f"780x650+{max(0,px+(pw-780)//2)}+{max(0,py+(ph-650)//2)}")
+        self.top.geometry(f"780x620+{max(0,px+(pw-780)//2)}+{max(0,py+(ph-620)//2)}")
 
         hdr = tk.Frame(self.top, bg=COLORS["header_bg"], height=42)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
         tk.Label(hdr, text="📥  导入预览 — 确认列映射与数据", font=(FONT_FAMILY, 12, "bold"),
-                 bg=COLORS["header_bg"], fg=COLORS["header_fg"]).pack(side="left", padx=16, pady=9)
-        self.paste_btn = ttk.Button(hdr, text="📋 粘贴", style="Import.TButton",
-                                     command=self._paste_from_clipboard)
-        self.paste_btn.pack(side="right", padx=12, pady=6)
+                 bg=COLORS["header_bg"], fg=COLORS["header_fg"]).pack(anchor="w", padx=16, pady=9)
 
         card = tk.Frame(self.top, bg=COLORS["card_bg"], bd=0,
                         highlightthickness=1, highlightbackground=COLORS["border"])
@@ -358,14 +355,6 @@ class ImportDialog:
         self.dup_strategy = tk.StringVar(value="skip")
         ttk.Radiobutton(r2, text="跳过", variable=self.dup_strategy, value="skip").pack(side="left", padx=(0, 14))
         ttk.Radiobutton(r2, text="覆盖", variable=self.dup_strategy, value="overwrite").pack(side="left")
-
-        r3 = tk.Frame(inner, bg=COLORS["card_bg"]); r3.pack(fill="x", pady=(4, 0))
-        tk.Label(r3, text="数量模式:", font=(FONT_FAMILY, 10),
-                 bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(side="left", padx=(0, 8))
-        self.qty_mode = tk.StringVar(value="set")
-        ttk.Radiobutton(r3, text="直接设置", variable=self.qty_mode, value="set").pack(side="left", padx=(0, 10))
-        ttk.Radiobutton(r3, text="累加库存", variable=self.qty_mode, value="add").pack(side="left", padx=(0, 10))
-        ttk.Radiobutton(r3, text="减去库存", variable=self.qty_mode, value="sub").pack(side="left")
 
         # Preview table
         c2 = tk.Frame(self.top, bg=COLORS["card_bg"], bd=0,
@@ -450,63 +439,9 @@ class ImportDialog:
             if model in self.existing_models: so += 1
             imported.append((tax, model, info, unit, num))
         if not imported: messagebox.showinfo("提示", "没有可导入的有效数据！", parent=self.top); return
-        self.result = {"data": imported, "qty_mode": self.qty_mode.get(),
-                        "stats": {"imported": len(imported), "skipped_empty": se,
+        self.result = {"data": imported, "stats": {"imported": len(imported), "skipped_empty": se,
                         "skipped_dup": sd, "overwritten": so}}
         self.top.destroy()
-
-    def _paste_from_clipboard(self):
-        """从剪贴板读取并解析数据"""
-        try:
-            text = self.parent.clipboard_get()
-        except tk.TclError:
-            messagebox.showwarning("提示", "剪贴板为空！", parent=self.top); return
-        if not text.strip():
-            messagebox.showwarning("提示", "剪贴板内容为空！", parent=self.top); return
-
-        lines = text.strip().splitlines()
-        delim = "\t" if len(lines[0].split("\t")) >= 2 else ("," if len(lines[0].split(",")) >= 2 else "\t")
-        rows = []
-        for line in lines:
-            parts = next(csv.reader(io.StringIO(line))) if delim == "," else line.split(delim)
-            rows.append(parts)
-
-        first = rows[0]
-        hk = ["型号","名称","详情","数量","库存","单位","税收","分类","model","name","info","num","qty","unit","tax"]
-        looks_header = any(any(kw in str(c).lower() for kw in hk) for c in first)
-        if looks_header and len(rows) > 1:
-            self.headers = rows[0]; self.raw_rows = rows[1:]
-        else:
-            max_cols = max(len(r) for r in rows)
-            self.headers = [f"列 {chr(65+i)}" if i < 26 else f"列 {i+1}" for i in range(max_cols)]
-            self.raw_rows = rows
-
-        # 重新智能匹配列
-        n = len(self.headers)
-        self.tax_col   = self._guess(self.TAX_KEYWORDS, 0)
-        self.model_col = self._guess(self.MODEL_KEYWORDS, min(1, n-1))
-        self.info_col  = self._guess(self.INFO_KEYWORDS, min(2, n-1))
-        self.unit_col  = self._guess(self.UNIT_KEYWORDS, min(3, n-1))
-        self.num_col   = self._guess(self.NUM_KEYWORDS, min(4, n-1))
-        used = set()
-        for attr in ("tax_col", "info_col", "model_col", "unit_col", "num_col"):
-            col = getattr(self, attr)
-            while col in used and col < n - 1: col += 1
-            if col in used:
-                for i in range(n):
-                    if i not in used: col = i; break
-            used.add(col); setattr(self, attr, col)
-
-        # 更新下拉框选项
-        for cb_name in ("tax_combo", "info_combo", "model_combo", "unit_combo", "num_combo"):
-            getattr(self, cb_name)["values"] = self.headers
-        self.tax_combo.current(self.tax_col)
-        self.info_combo.current(self.info_col)
-        self.model_combo.current(self.model_col)
-        self.unit_combo.current(self.unit_col)
-        self.num_combo.current(self.num_col)
-
-        self._refresh()
 
     def _cancel(self): self.top.destroy()
 
@@ -1053,8 +988,20 @@ class StockApp:
         self._do_import(rows[0], rows[1:])
 
     def _import_clipboard(self):
-        """打开导入对话框，由用户点击粘贴按钮读取剪贴板"""
-        self._do_import([], [])
+        try: text = self.root.clipboard_get()
+        except tk.TclError: messagebox.showwarning("提示", "剪贴板为空！"); return
+        if not text.strip(): messagebox.showwarning("提示", "剪贴板内容为空！"); return
+        lines = text.strip().splitlines()
+        delim = "\t" if len(lines[0].split("\t")) >= 2 else ("," if len(lines[0].split(",")) >= 2 else "\t")
+        rows = []
+        for line in lines:
+            parts = next(csv.reader(io.StringIO(line))) if delim == "," else line.split(delim)
+            rows.append(parts)
+        first = rows[0]; hk = ["型号","名称","详情","数量","库存","单位","税收","分类","model","name","info","num","qty","unit","tax"]
+        looks_header = any(any(kw in str(c).lower() for kw in hk) for c in first)
+        headers, data = (rows[0], rows[1:]) if looks_header and len(rows) > 1 else (
+            [f"列 {chr(65+i)}" if i < 26 else f"列 {i+1}" for i in range(max(len(r) for r in rows))], rows)
+        self._do_import(headers, data)
 
     def _import_excel(self):
         if not HAS_OPENPYXL: messagebox.showwarning("提示", "需要 pip install openpyxl"); return
@@ -1071,42 +1018,21 @@ class StockApp:
         self._do_import(rows[0], rows[1:])
 
     def _do_import(self, headers, data_rows):
-        # 收集现有型号名（用于预览标记重复）
+        if not data_rows: messagebox.showwarning("提示", "没有数据行！"); return
+        # 收集现有型号名（用于预览标记重复，不再用于阻止导入）
         existing_models = {item.get("model", "") for item in self.data.values()}
         dlg = ImportDialog(self.root, headers, data_rows, existing_models)
         self.root.wait_window(dlg.top)
         if dlg.result is None: return
-        qty_mode = dlg.result.get("qty_mode", "set")
-        updated_count = 0
         for tax, model, info, unit, num in dlg.result["data"]:
-            # 查找是否已有同名同详情的记录
-            existing_id = None
-            for rid, item in self.data.items():
-                if item.get("model", "") == model and item.get("info", "") == info:
-                    existing_id = rid; break
-
-            if existing_id:
-                cur = int(self.data[existing_id]["num"])
-                if qty_mode == "sub":
-                    self.data[existing_id]["num"] = max(0, cur - num)
-                else:
-                    # 直接设置 和 累加库存 都是累加
-                    self.data[existing_id]["num"] = cur + num
-                if tax: self.data[existing_id]["tax"] = tax
-                if unit: self.data[existing_id]["unit"] = unit
-                updated_count += 1
-            else:
-                new_id = str(self._next_id)
-                final_num = -num if qty_mode == "sub" else num
-                self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": final_num}
-                self._next_id += 1
+            new_id = str(self._next_id)
+            self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
+            self._next_id += 1
         save_data(self.data)
         self._refresh_table()
         self._git_push()
         s = dlg.result["stats"]
-        mode_label = {"set": "直接设置", "add": "累加库存", "sub": "减去库存"}.get(qty_mode, qty_mode)
-        msg = f"成功导入 {s['imported']} 条记录！（数量模式：{mode_label}）"
-        if updated_count: msg += f"\n更新 {updated_count} 条已有记录的库存。"
+        msg = f"成功导入 {s['imported']} 条记录！"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
         messagebox.showinfo("导入完成", msg)
 
