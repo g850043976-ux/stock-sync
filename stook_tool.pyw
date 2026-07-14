@@ -354,7 +354,7 @@ class ImportDialog:
                  bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(side="left", padx=(0, 8))
         self.dup_strategy = tk.StringVar(value="skip")
         ttk.Radiobutton(r2, text="增加", variable=self.dup_strategy, value="skip").pack(side="left", padx=(0, 14))
-        ttk.Radiobutton(r2, text="覆盖", variable=self.dup_strategy, value="overwrite").pack(side="left")
+        ttk.Radiobutton(r2, text="减少", variable=self.dup_strategy, value="overwrite").pack(side="left")
 
         # Preview table
         c2 = tk.Frame(self.top, bg=COLORS["card_bg"], bd=0,
