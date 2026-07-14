@@ -745,7 +745,6 @@ class StockApp:
         ttk.Button(bb, text="－", style="Warning.TButton", width=3,
                    command=lambda: self._apply_delta(-1)).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="修改", style="Edit.TButton", command=self._edit_model).pack(side="left", padx=(0, 8))
-        ttk.Button(bb, text="📋 提取", style="Outline.TButton", command=self._copy_row).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="🗑 删除型号", style="Danger.TButton", command=self._del_model).pack(side="right")
 
     # ---------- 表格 ----------
@@ -757,11 +756,12 @@ class StockApp:
         tb = tk.Frame(card, bg=COLORS["card_bg"]); tb.pack(fill="x", padx=16, pady=(12, 6))
         tk.Label(tb, text="📋 库存列表", font=(FONT_FAMILY, 11, "bold"),
                  bg=COLORS["card_bg"], fg=COLORS["text_primary"]).pack(side="left")
-        self.batch_btn = ttk.Button(tb, text="🗑 批量删除", style="Outline.TButton",
-                                    command=self._toggle_batch_mode)
-        self.batch_btn.pack(side="right", padx=(0, 6))
-        self.batch_confirm_btn = ttk.Button(tb, text="确定删除", style="Danger.TButton",
-                                            command=self._batch_delete)
+        if self.is_manage:
+            self.batch_btn = ttk.Button(tb, text="🗑 批量删除", style="Outline.TButton",
+                                        command=self._toggle_batch_mode)
+            self.batch_btn.pack(side="right", padx=(0, 6))
+            self.batch_confirm_btn = ttk.Button(tb, text="确定删除", style="Danger.TButton",
+                                                command=self._batch_delete)
         ttk.Button(tb, text="📋 提取", style="Outline.TButton", command=self._copy_row).pack(side="right", padx=(0, 6))
         self.count_label = tk.Label(tb, text="", font=(FONT_FAMILY, 10),
                                     bg=COLORS["card_bg"], fg=COLORS["text_secondary"])
@@ -789,7 +789,8 @@ class StockApp:
         self.tree.tag_configure("even", background=COLORS["tree_even"])
         self.tree.tag_configure("odd", background=COLORS["tree_odd"])
         self.tree.tag_configure("zero_stock", foreground="#B0BEC5")
-        self.batch_confirm_btn.pack_forget()  # 初始隐藏
+        if self.is_manage:
+            self.batch_confirm_btn.pack_forget()  # 初始隐藏
 
     # ---------- 底部状态栏 ----------
     def _build_footer(self):
