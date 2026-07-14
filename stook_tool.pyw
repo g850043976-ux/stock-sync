@@ -1096,7 +1096,8 @@ class StockApp:
                 updated_count += 1
             else:
                 new_id = str(self._next_id)
-                self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
+                final_num = -num if qty_mode == "sub" else num
+                self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": final_num}
                 self._next_id += 1
         save_data(self.data)
         self._refresh_table()
