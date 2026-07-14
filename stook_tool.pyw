@@ -885,18 +885,18 @@ class StockApp:
         self.count_label.pack(side="right")
 
         ct = tk.Frame(card, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(16, 4), pady=(0, 12))
-        self.tree = ttk.Treeview(ct, columns=("chk","id","tax","info","model","unit","num"), show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(ct, columns=("chk","id","tax","model","info","unit","num"), show="headings", selectmode="browse")
         self.tree.heading("chk", text="☐", anchor="center")
         self.tree.heading("id", text="编码", anchor="center")
         self.tree.heading("tax", text="税收分类", anchor="center")
-        self.tree.heading("info", text="产品详情", anchor="center")
         self.tree.heading("model", text="设备型号", anchor="center")
+        self.tree.heading("info", text="产品详情", anchor="center")
         self.tree.heading("unit", text="单位", anchor="center"); self.tree.heading("num", text="数量", anchor="center")
         self.tree.column("chk", width=0, minwidth=0, stretch=False)
         self.tree.column("id", width=50, minwidth=40, anchor="center")
         self.tree.column("tax", width=100, minwidth=70, anchor="center")
-        self.tree.column("info", width=330, minwidth=140, anchor="center")
-        self.tree.column("model", width=150, minwidth=90, anchor="center")
+        self.tree.column("model", width=330, minwidth=140, anchor="center")
+        self.tree.column("info", width=150, minwidth=90, anchor="center")
         self.tree.column("unit", width=50, minwidth=40, anchor="center")
         self.tree.column("num", width=70, minwidth=50, anchor="center")
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.tree.yview)
@@ -976,7 +976,7 @@ class StockApp:
             elif item["num"] == 0: tag = ("zero_stock", tag)
             chk = "☑" if self.batch_mode and rid in self.batch_checked else ""
             self.tree.insert("", "end", iid=rid,
-                             values=(chk, rid, item.get("tax",""), item.get("info",""), item.get("model",""),
+                             values=(chk, rid, item.get("tax",""), item.get("model",""), item.get("info",""),
                                      item.get("unit",""), item["num"]),
                              tags=tag)
         cnt = len(self.data)
@@ -1068,7 +1068,7 @@ class StockApp:
                 elif item["num"] == 0: tag = ("zero_stock", tag)
                 chk = "☑" if self.batch_mode and rid in self.batch_checked else ""
                 self.tree.insert("", "end", iid=rid,
-                                 values=(chk, rid, item.get("tax",""), item.get("info",""), model,
+                                 values=(chk, rid, item.get("tax",""), model, item.get("info",""),
                                          item.get("unit",""), item["num"]),
                                  tags=tag)
                 cnt += 1
