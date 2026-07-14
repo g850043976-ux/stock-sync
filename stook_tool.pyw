@@ -738,15 +738,20 @@ class StockApp:
         self.count_label.pack(side="right")
 
         ct = tk.Frame(card, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(16, 4), pady=(0, 12))
-        self.tree = ttk.Treeview(ct, columns=("id","model","info","unit","num"), show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(ct, columns=("id","s1","model","s2","info","s3","unit","s4","num"),
+                                 show="headings", selectmode="browse")
         self.tree.heading("id", text="编码", anchor="center")
-        self.tree.heading("model", text="设备型号"); self.tree.heading("info", text="产品详情")
-        self.tree.heading("unit", text="单位", anchor="center"); self.tree.heading("num", text="数量", anchor="center")
+        self.tree.heading("s1", text=""); self.tree.heading("model", text="设备型号")
+        self.tree.heading("s2", text=""); self.tree.heading("info", text="产品详情")
+        self.tree.heading("s3", text=""); self.tree.heading("unit", text="单位", anchor="center")
+        self.tree.heading("s4", text=""); self.tree.heading("num", text="数量", anchor="center")
         self.tree.column("id", width=50, minwidth=40, anchor="center")
-        self.tree.column("model", width=170, minwidth=100)
-        self.tree.column("info", width=390, minwidth=160)
-        self.tree.column("unit", width=60, minwidth=50, anchor="center")
-        self.tree.column("num", width=80, minwidth=60, anchor="center")
+        self.tree.column("s1", width=2, stretch=False); self.tree.column("model", width=170, minwidth=100)
+        self.tree.column("s2", width=2, stretch=False); self.tree.column("info", width=390, minwidth=160)
+        self.tree.column("s3", width=2, stretch=False); self.tree.column("unit", width=60, minwidth=50, anchor="center")
+        self.tree.column("s4", width=2, stretch=False); self.tree.column("num", width=80, minwidth=60, anchor="center")
+        # 分隔线样式
+        self.tree.tag_configure("sep", background=COLORS["border"])
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.pack(side="left", fill="both", expand=True); vsb.pack(side="right", fill="y")
@@ -812,7 +817,8 @@ class StockApp:
             tag = "even" if idx % 2 == 0 else "odd"
             if item["num"] == 0: tag = ("zero_stock", tag)
             self.tree.insert("", "end", iid=rid,
-                             values=(rid, item.get("model",""), item.get("info",""), item.get("unit",""), item["num"]),
+                             values=(rid, " ", item.get("model",""), " ", item.get("info",""),
+                                     " ", item.get("unit",""), " ", item["num"]),
                              tags=tag)
         cnt = len(self.data)
         self.count_label.config(text=f"共 {cnt} 条记录" if cnt else "暂无数据")
@@ -825,8 +831,10 @@ class StockApp:
         if not sel: return
         self.selected_id = sel[0]  # iid 即为数据 key
         item = self.tree.item(self.selected_id)
-        _, model, info, unit, num = item["values"]
-        self.model_var.set(model); self.info_var.set(info); self.unit_var.set(unit); self.num_var.set(str(num))
+        # values: (id, sep, model, sep, info, sep, unit, sep, num)
+        vals = item["values"]
+        self.model_var.set(vals[2]); self.info_var.set(vals[4])
+        self.unit_var.set(vals[6]); self.num_var.set(str(vals[8]))
 
     # ---------- 搜索 ----------
     def search_item(self):
@@ -840,7 +848,8 @@ class StockApp:
                 tag = "even" if cnt % 2 == 0 else "odd"
                 if item["num"] == 0: tag = ("zero_stock", tag)
                 self.tree.insert("", "end", iid=rid,
-                                 values=(rid, model, item.get("info",""), item.get("unit",""), item["num"]),
+                                 values=(rid, " ", model, " ", item.get("info",""),
+                                         " ", item.get("unit",""), " ", item["num"]),
                                  tags=tag)
                 cnt += 1
         self.count_label.config(text=f"搜索到 {cnt} 条结果" if keyword else "")
