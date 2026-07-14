@@ -588,6 +588,9 @@ class StockApp:
         style.configure("Import.TButton", font=(FONT_FAMILY, 10, "bold"),
                         background=COLORS["card_bg"], foreground="#00897B", borderwidth=1, padding=(12,6))
         style.map("Import.TButton", background=[("active", "#E0F2F1"), ("pressed", "#B2DFDB")])
+        style.configure("Edit.TButton", font=(FONT_FAMILY, 10, "bold"),
+                        background="#FDD835", foreground="#333333", borderwidth=0, padding=(12,6))
+        style.map("Edit.TButton", background=[("active", "#F9A825"), ("pressed", "#FBC02D")])
         style.configure("Treeview", font=(FONT_FAMILY, 10),
                         background=COLORS["card_bg"], fieldbackground=COLORS["card_bg"],
                         foreground=COLORS["text_primary"], rowheight=34, borderwidth=0)
@@ -709,7 +712,7 @@ class StockApp:
         ttk.Button(bb, text="➕ 新增型号", style="Primary.TButton", command=self.save_model).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="＋ 数量 +1", style="Success.TButton", command=lambda: self._change_num(1)).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="－ 数量 -1", style="Warning.TButton", command=lambda: self._change_num(-1)).pack(side="left", padx=(0, 8))
-        ttk.Button(bb, text="✏️ 修改", style="Outline.TButton", command=self._edit_model).pack(side="left", padx=(0, 8))
+        ttk.Button(bb, text="修改", style="Edit.TButton", command=self._edit_model).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="🗑 删除型号", style="Danger.TButton", command=self._del_model).pack(side="right")
 
     # ---------- 表格 ----------
