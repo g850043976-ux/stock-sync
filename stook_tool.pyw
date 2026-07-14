@@ -920,11 +920,6 @@ class StockApp:
                 self.unit_var.set(""); self.num_var.set("0")
             return
         self.selected_id = sel[0]
-        if self.is_manage:
-            item = self.tree.item(self.selected_id)
-            _, chk, tax, info, model, unit, num = item["values"]
-            self.tax_var.set(tax); self.model_var.set(model); self.info_var.set(info)
-            self.unit_var.set(unit); self.num_var.set(str(num))
 
     # ---------- 搜索 ----------
     def search_item(self):
