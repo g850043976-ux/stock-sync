@@ -430,6 +430,98 @@ class ImportDialog:
 
 
 # ============================================================
+# 修改弹窗
+# ============================================================
+class EditDialog:
+    """点击"修改"按钮后弹出，编辑设备型号、产品详情、单位"""
+
+    def __init__(self, parent, model, info, unit):
+        self.result = None
+        self.top = tk.Toplevel()
+        self.top.title("修改型号信息")
+        self.top.geometry("460x240")
+        self.top.resizable(False, False)
+        self.top.transient(parent)
+        self.top.grab_set()
+        self.top.configure(bg=COLORS["bg"])
+        self._center(parent)
+        self._build(model, info, unit)
+        self.top.wait_window()
+
+    def _build(self, model, info, unit):
+        hdr = tk.Frame(self.top, bg=COLORS["header_bg"], height=38)
+        hdr.pack(fill="x"); hdr.pack_propagate(False)
+        tk.Label(hdr, text="✏️  修改型号信息", font=(FONT_FAMILY, 12, "bold"),
+                 bg=COLORS["header_bg"], fg=COLORS["header_fg"]).pack(anchor="w", padx=16, pady=7)
+
+        card = tk.Frame(self.top, bg=COLORS["card_bg"], bd=0,
+                        highlightthickness=1, highlightbackground=COLORS["border"])
+        card.pack(fill="both", expand=True, padx=12, pady=10)
+
+        form = tk.Frame(card, bg=COLORS["card_bg"])
+        form.pack(fill="x", padx=16, pady=14)
+
+        # 设备型号
+        tk.Label(form, text="设备型号", font=(FONT_FAMILY, 10),
+                 bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(anchor="w")
+        self.model_var = tk.StringVar(value=model)
+        tk.Entry(form, textvariable=self.model_var, font=(FONT_FAMILY, 10),
+                 bg=COLORS["card_bg"], fg=COLORS["text_primary"],
+                 relief="solid", bd=1, highlightthickness=1,
+                 highlightbackground=COLORS["border"],
+                 highlightcolor=COLORS["primary"]).pack(fill="x", ipady=4, pady=(0, 10))
+
+        # 产品详情
+        tk.Label(form, text="产品详情", font=(FONT_FAMILY, 10),
+                 bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(anchor="w")
+        self.info_var = tk.StringVar(value=info)
+        tk.Entry(form, textvariable=self.info_var, font=(FONT_FAMILY, 10),
+                 bg=COLORS["card_bg"], fg=COLORS["text_primary"],
+                 relief="solid", bd=1, highlightthickness=1,
+                 highlightbackground=COLORS["border"],
+                 highlightcolor=COLORS["primary"]).pack(fill="x", ipady=4, pady=(0, 10))
+
+        # 单位
+        tk.Label(form, text="单位", font=(FONT_FAMILY, 10),
+                 bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(anchor="w")
+        self.unit_var = tk.StringVar(value=unit)
+        tk.Entry(form, textvariable=self.unit_var, font=(FONT_FAMILY, 10), width=10,
+                 bg=COLORS["card_bg"], fg=COLORS["text_primary"],
+                 relief="solid", bd=1, highlightthickness=1,
+                 highlightbackground=COLORS["border"],
+                 highlightcolor=COLORS["primary"]).pack(anchor="w", ipady=4, pady=(0, 10))
+
+        # 按钮
+        bar = tk.Frame(self.top, bg=COLORS["bg"]); bar.pack(fill="x", padx=12, pady=(0, 12))
+        ttk.Button(bar, text="💾 保存修改", style="Primary.TButton",
+                   command=self._confirm).pack(side="right", padx=(8, 0))
+        ttk.Button(bar, text="取消", style="Outline.TButton",
+                   command=self._cancel).pack(side="right")
+
+    def _confirm(self):
+        model = self.model_var.get().strip()
+        if not model:
+            messagebox.showwarning("提示", "设备型号不能为空！", parent=self.top)
+            return
+        self.result = {
+            "model": model,
+            "info": self.info_var.get().strip(),
+            "unit": self.unit_var.get().strip(),
+        }
+        self.top.destroy()
+
+    def _cancel(self):
+        self.top.destroy()
+
+    def _center(self, parent):
+        self.top.update_idletasks()
+        pw = parent.winfo_width(); ph = parent.winfo_height()
+        px = parent.winfo_rootx(); py = parent.winfo_rooty()
+        x = px + (pw - 460) // 2; y = py + (ph - 240) // 2
+        self.top.geometry(f"460x240+{max(0,x)}+{max(0,y)}")
+
+
+# ============================================================
 # 主应用
 # ============================================================
 class StockApp:
@@ -614,9 +706,10 @@ class StockApp:
         form.columnconfigure(0, weight=1); form.columnconfigure(1, weight=2)
 
         bb = tk.Frame(card, bg=COLORS["card_bg"]); bb.pack(fill="x", padx=16, pady=(0, 12))
-        ttk.Button(bb, text="💾 保存型号", style="Primary.TButton", command=self.save_model).pack(side="left", padx=(0, 8))
+        ttk.Button(bb, text="➕ 新增型号", style="Primary.TButton", command=self.save_model).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="＋ 数量 +1", style="Success.TButton", command=lambda: self._change_num(1)).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="－ 数量 -1", style="Warning.TButton", command=lambda: self._change_num(-1)).pack(side="left", padx=(0, 8))
+        ttk.Button(bb, text="✏️ 修改", style="Outline.TButton", command=self._edit_model).pack(side="left", padx=(0, 8))
         ttk.Button(bb, text="🗑 删除型号", style="Danger.TButton", command=self._del_model).pack(side="right")
 
     # ---------- 表格 ----------
@@ -843,6 +936,7 @@ class StockApp:
         except ValueError: messagebox.showerror("错误", "数量必须是数字！")
 
     def save_model(self):
+        """新增型号 —— 永远创建新记录，不更新已有"""
         model = self.model_var.get().strip(); info = self.info_var.get().strip()
         unit = self.unit_var.get().strip(); num_text = self.num_var.get().strip()
         if not model: messagebox.showerror("错误", "型号不能为空！"); return
@@ -851,23 +945,35 @@ class StockApp:
             if num < 0: messagebox.showerror("错误", "库存不能为负数！"); return
         except ValueError: messagebox.showerror("错误", "数量请输入整数！"); return
 
-        if self.selected_id and self.selected_id in self.data:
-            # 更新已选中记录
-            self.data[self.selected_id] = {"model": model, "info": info, "unit": unit, "num": num}
-            action = "更新"
-        else:
-            # 新增记录
-            new_id = str(self._next_id)
-            self.data[new_id] = {"model": model, "info": info, "unit": unit, "num": num}
-            self._next_id += 1
-            self.selected_id = new_id
-            action = "新增"
+        new_id = str(self._next_id)
+        self.data[new_id] = {"model": model, "info": info, "unit": unit, "num": num}
+        self._next_id += 1
+        self.selected_id = new_id
         save_data(self.data); self._refresh_table(); self._git_push()
-        # 保持选中状态
-        if self.selected_id in self.data:
-            self.tree.selection_set(self.selected_id)
-            self.tree.see(self.selected_id)
-        messagebox.showinfo("成功", f"型号「{model}」已{action}！")
+        self.tree.selection_set(new_id)
+        self.tree.see(new_id)
+        messagebox.showinfo("成功", f"型号「{model}」已新增！（编码 {new_id}）")
+
+    def _edit_model(self):
+        """弹出修改窗口，只能修改已保存的记录"""
+        if not self.selected_id or self.selected_id not in self.data:
+            messagebox.showwarning("提示", "请先在表格中点击选择一条记录！"); return
+        item = self.data[self.selected_id]
+        dlg = EditDialog(self.root, item.get("model", ""), item.get("info", ""), item.get("unit", ""))
+        if dlg.result is None:
+            return
+        # 更新记录
+        self.data[self.selected_id]["model"] = dlg.result["model"]
+        self.data[self.selected_id]["info"] = dlg.result["info"]
+        self.data[self.selected_id]["unit"] = dlg.result["unit"]
+        save_data(self.data); self._refresh_table(); self._git_push()
+        self.tree.selection_set(self.selected_id)
+        self.tree.see(self.selected_id)
+        # 同步更新编辑面板
+        self.model_var.set(dlg.result["model"])
+        self.info_var.set(dlg.result["info"])
+        self.unit_var.set(dlg.result["unit"])
+        messagebox.showinfo("成功", f"编码 {self.selected_id} 已修改！")
 
     def _del_model(self):
         if not self.selected_id or self.selected_id not in self.data:
