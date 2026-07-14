@@ -317,7 +317,10 @@ class ImportDialog:
         hdr = tk.Frame(self.top, bg=COLORS["header_bg"], height=42)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
         tk.Label(hdr, text="📥  导入预览 — 确认列映射与数据", font=(FONT_FAMILY, 12, "bold"),
-                 bg=COLORS["header_bg"], fg=COLORS["header_fg"]).pack(anchor="w", padx=16, pady=9)
+                 bg=COLORS["header_bg"], fg=COLORS["header_fg"]).pack(side="left", padx=16, pady=9)
+        self.paste_btn = ttk.Button(hdr, text="📋 粘贴", style="Import.TButton",
+                                     command=self._paste_from_clipboard)
+        self.paste_btn.pack(side="right", padx=12, pady=6)
 
         card = tk.Frame(self.top, bg=COLORS["card_bg"], bd=0,
                         highlightthickness=1, highlightbackground=COLORS["border"])
@@ -450,6 +453,59 @@ class ImportDialog:
                         "stats": {"imported": len(imported), "skipped_empty": se,
                         "skipped_dup": sd, "overwritten": so}}
         self.top.destroy()
+
+    def _paste_from_clipboard(self):
+        """从剪贴板读取并解析数据"""
+        try:
+            text = self.top.clipboard_get()
+        except tk.TclError:
+            messagebox.showwarning("提示", "剪贴板为空！", parent=self.top); return
+        if not text.strip():
+            messagebox.showwarning("提示", "剪贴板内容为空！", parent=self.top); return
+
+        lines = text.strip().splitlines()
+        delim = "\t" if len(lines[0].split("\t")) >= 2 else ("," if len(lines[0].split(",")) >= 2 else "\t")
+        rows = []
+        for line in lines:
+            parts = next(csv.reader(io.StringIO(line))) if delim == "," else line.split(delim)
+            rows.append(parts)
+
+        first = rows[0]
+        hk = ["型号","名称","详情","数量","库存","单位","税收","分类","model","name","info","num","qty","unit","tax"]
+        looks_header = any(any(kw in str(c).lower() for kw in hk) for c in first)
+        if looks_header and len(rows) > 1:
+            self.headers = rows[0]; self.raw_rows = rows[1:]
+        else:
+            max_cols = max(len(r) for r in rows)
+            self.headers = [f"列 {chr(65+i)}" if i < 26 else f"列 {i+1}" for i in range(max_cols)]
+            self.raw_rows = rows
+
+        # 重新智能匹配列
+        n = len(self.headers)
+        self.tax_col   = self._guess(self.TAX_KEYWORDS, 0)
+        self.model_col = self._guess(self.MODEL_KEYWORDS, min(1, n-1))
+        self.info_col  = self._guess(self.INFO_KEYWORDS, min(2, n-1))
+        self.unit_col  = self._guess(self.UNIT_KEYWORDS, min(3, n-1))
+        self.num_col   = self._guess(self.NUM_KEYWORDS, min(4, n-1))
+        used = set()
+        for attr in ("tax_col", "info_col", "model_col", "unit_col", "num_col"):
+            col = getattr(self, attr)
+            while col in used and col < n - 1: col += 1
+            if col in used:
+                for i in range(n):
+                    if i not in used: col = i; break
+            used.add(col); setattr(self, attr, col)
+
+        # 更新下拉框选项
+        for cb_name in ("tax_combo", "info_combo", "model_combo", "unit_combo", "num_combo"):
+            getattr(self, cb_name)["values"] = self.headers
+        self.tax_combo.current(self.tax_col)
+        self.info_combo.current(self.info_col)
+        self.model_combo.current(self.model_col)
+        self.unit_combo.current(self.unit_col)
+        self.num_combo.current(self.num_col)
+
+        self._refresh()
 
     def _cancel(self): self.top.destroy()
 
@@ -996,20 +1052,8 @@ class StockApp:
         self._do_import(rows[0], rows[1:])
 
     def _import_clipboard(self):
-        try: text = self.root.clipboard_get()
-        except tk.TclError: messagebox.showwarning("提示", "剪贴板为空！"); return
-        if not text.strip(): messagebox.showwarning("提示", "剪贴板内容为空！"); return
-        lines = text.strip().splitlines()
-        delim = "\t" if len(lines[0].split("\t")) >= 2 else ("," if len(lines[0].split(",")) >= 2 else "\t")
-        rows = []
-        for line in lines:
-            parts = next(csv.reader(io.StringIO(line))) if delim == "," else line.split(delim)
-            rows.append(parts)
-        first = rows[0]; hk = ["型号","名称","详情","数量","库存","单位","税收","分类","model","name","info","num","qty","unit","tax"]
-        looks_header = any(any(kw in str(c).lower() for kw in hk) for c in first)
-        headers, data = (rows[0], rows[1:]) if looks_header and len(rows) > 1 else (
-            [f"列 {chr(65+i)}" if i < 26 else f"列 {i+1}" for i in range(max(len(r) for r in rows))], rows)
-        self._do_import(headers, data)
+        """打开导入对话框，由用户点击粘贴按钮读取剪贴板"""
+        self._do_import([], [])
 
     def _import_excel(self):
         if not HAS_OPENPYXL: messagebox.showwarning("提示", "需要 pip install openpyxl"); return
@@ -1026,8 +1070,7 @@ class StockApp:
         self._do_import(rows[0], rows[1:])
 
     def _do_import(self, headers, data_rows):
-        if not data_rows: messagebox.showwarning("提示", "没有数据行！"); return
-        # 收集现有型号名（用于预览标记重复，不再用于阻止导入）
+        # 收集现有型号名（用于预览标记重复）
         existing_models = {item.get("model", "") for item in self.data.values()}
         dlg = ImportDialog(self.root, headers, data_rows, existing_models)
         self.root.wait_window(dlg.top)
@@ -1043,12 +1086,11 @@ class StockApp:
 
             if existing_id:
                 cur = int(self.data[existing_id]["num"])
-                if qty_mode == "add":
-                    self.data[existing_id]["num"] = cur + num
-                elif qty_mode == "sub":
+                if qty_mode == "sub":
                     self.data[existing_id]["num"] = max(0, cur - num)
                 else:
-                    self.data[existing_id]["num"] = num
+                    # 直接设置 和 累加库存 都是累加
+                    self.data[existing_id]["num"] = cur + num
                 if tax: self.data[existing_id]["tax"] = tax
                 if unit: self.data[existing_id]["unit"] = unit
                 updated_count += 1
