@@ -1,0 +1,21 @@
+# Python 安装目录（不要提交）
+Python314/
+
+# 本地数据文件
+data.json
+config.json
+stock.db
+
+# 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/

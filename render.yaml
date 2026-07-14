@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: stock-sync-server
+    runtime: python
+    plan: free
+    buildCommand: ""
+    startCommand: python server.py --port $PORT
+    envVars:
+      - key: STOCK_API_TOKEN
+        sync: false
