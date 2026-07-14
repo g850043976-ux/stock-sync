@@ -458,7 +458,7 @@ class ImportDialog:
         mi, ii, ui, ni = (self.model_combo.current(), self.info_combo.current(),
                            self.unit_combo.current(), self.num_combo.current())
         valid = empty = dup = 0
-        limit = min(len(self.raw_rows), 100)
+        limit = min(len(self.raw_rows), 500)
         for idx, row in enumerate(self.raw_rows[:limit]):
             tax   = str(row[ti] if ti < len(row) else "").strip()
             model = str(row[mi] if mi < len(row) else "").strip()
