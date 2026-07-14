@@ -1107,15 +1107,37 @@ class StockApp:
         dlg = ImportDialog(self.root, headers, data_rows, existing_models)
         self.root.wait_window(dlg.top)
         if dlg.result is None: return
+        added = 0; merged = 0
         for tax, model, info, unit, num in dlg.result["data"]:
-            new_id = str(self._next_id)
-            self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
-            self._next_id += 1
+            if dlg.dup_strategy.get() == "skip":
+                # "增加"模式：三字段全匹配 → 合并数量，否则新增
+                found = False
+                for rid, item in self.data.items():
+                    if (item.get("tax","") == tax and item.get("model","") == model
+                            and item.get("info","") == info):
+                        item["num"] += num
+                        if unit and not item.get("unit"):
+                            item["unit"] = unit
+                        found = True
+                        merged += 1
+                        break
+                if not found:
+                    new_id = str(self._next_id)
+                    self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
+                    self._next_id += 1
+                    added += 1
+            else:
+                # "减少"模式：每行都新增
+                new_id = str(self._next_id)
+                self.data[new_id] = {"tax": tax, "model": model, "info": info, "unit": unit, "num": num}
+                self._next_id += 1
+                added += 1
         save_data(self.data)
         self._refresh_table()
         self._git_push()
         s = dlg.result["stats"]
-        msg = f"成功导入 {s['imported']} 条记录！"
+        msg = f"成功导入 {added} 条记录！"
+        if merged: msg += f"\n{merged} 条全匹配，数量直接累加。"
         if s["skipped_dup"]: msg += f"\n跳过 {s['skipped_dup']} 条重复。"
         messagebox.showinfo("导入完成", msg)
 
