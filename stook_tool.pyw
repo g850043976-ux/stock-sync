@@ -328,8 +328,8 @@ class ImportDialog:
                  bg=COLORS["card_bg"], fg=COLORS["text_primary"]).pack(anchor="w", pady=(0, 8))
 
         r1 = tk.Frame(inner, bg=COLORS["card_bg"]); r1.pack(fill="x", pady=(0, 6))
-        for text, attr, w in [("税收分类 →", "tax_combo", 12), ("产品详情 →", "info_combo", 22),
-                               ("设备型号 →", "model_combo", 16), ("单位 →", "unit_combo", 8),
+        for text, attr, w in [("税收分类 →", "tax_combo", 12), ("规格型号 →", "info_combo", 22),
+                               ("描述 →", "model_combo", 16), ("单位 →", "unit_combo", 8),
                                ("库存数量 →", "num_combo", 10)]:
             tk.Label(r1, text=text, font=(FONT_FAMILY, 10),
                      bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(side="left", padx=(0, 4))
@@ -368,8 +368,8 @@ class ImportDialog:
 
         ct = tk.Frame(c2, bg=COLORS["card_bg"]); ct.pack(fill="both", expand=True, padx=(14,4), pady=(0,10))
         self.pt = ttk.Treeview(ct, columns=("row","tax","info","model","unit","num"), show="headings", selectmode="none", height=8)
-        for c, t, w in [("row","行",36), ("tax","税收分类",80), ("model","设备型号",140),
-                         ("info","产品详情",260), ("unit","单位",44), ("num","数量",54)]:
+        for c, t, w in [("row","行",36), ("tax","税收分类",80), ("model","描述",140),
+                         ("info","规格型号",260), ("unit","单位",44), ("num","数量",54)]:
             self.pt.heading(c, text=t, anchor="center" if c in ("row","unit","num") else "w")
             self.pt.column(c, width=w, anchor="center" if c in ("row","unit","num") else "w", stretch=c=="info")
         vsb = ttk.Scrollbar(ct, orient="vertical", command=self.pt.yview)
@@ -539,9 +539,9 @@ class ImportDialog:
         if not imported:
             msg = "没有可导入的有效数据！"
             if failed_model_rows:
-                msg += f"\n\n设备型号为空：第 {', '.join(str(r) for r in failed_model_rows)} 行"
+                msg += f"\n\n描述为空：第 {', '.join(str(r) for r in failed_model_rows)} 行"
             if failed_info_rows:
-                msg += f"\n\n产品详情为空：第 {', '.join(str(r) for r in failed_info_rows)} 行"
+                msg += f"\n\n规格型号为空：第 {', '.join(str(r) for r in failed_info_rows)} 行"
             messagebox.showinfo("提示", msg, parent=self.top); return
         self.result = {"data": imported, "stats": {"imported": len(imported), "skipped_empty": se,
                         "skipped_dup": sd, "overwritten": so},
@@ -556,7 +556,7 @@ class ImportDialog:
 # 修改弹窗
 # ============================================================
 class EditDialog:
-    """点击"修改"按钮后弹出，编辑税收分类、设备型号、产品详情、单位"""
+    """点击"修改"按钮后弹出，编辑税收分类、描述、规格型号、单位"""
 
     def __init__(self, parent, tax, info, model, unit):
         self.result = None
@@ -594,8 +594,8 @@ class EditDialog:
                  highlightbackground=COLORS["border"],
                  highlightcolor=COLORS["primary"]).pack(fill="x", ipady=4, pady=(0, 10))
 
-        # 产品详情
-        tk.Label(form, text="产品详情", font=(FONT_FAMILY, 10),
+        # 规格型号
+        tk.Label(form, text="规格型号", font=(FONT_FAMILY, 10),
                  bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(anchor="w")
         self.info_var = tk.StringVar(value=info)
         tk.Entry(form, textvariable=self.info_var, font=(FONT_FAMILY, 10),
@@ -604,8 +604,8 @@ class EditDialog:
                  highlightbackground=COLORS["border"],
                  highlightcolor=COLORS["primary"]).pack(fill="x", ipady=4, pady=(0, 10))
 
-        # 设备型号
-        tk.Label(form, text="设备型号", font=(FONT_FAMILY, 10),
+        # 描述
+        tk.Label(form, text="描述", font=(FONT_FAMILY, 10),
                  bg=COLORS["card_bg"], fg=COLORS["text_secondary"]).pack(anchor="w")
         self.model_var = tk.StringVar(value=model)
         tk.Entry(form, textvariable=self.model_var, font=(FONT_FAMILY, 10),
@@ -634,7 +634,7 @@ class EditDialog:
     def _confirm(self):
         model = self.model_var.get().strip()
         if not model:
-            messagebox.showwarning("提示", "设备型号不能为空！", parent=self.top)
+            messagebox.showwarning("提示", "描述不能为空！", parent=self.top)
             return
         self.result = {
             "tax": self.tax_var.get().strip(),
@@ -826,8 +826,8 @@ class StockApp:
 
         form = tk.Frame(card, bg=COLORS["card_bg"]); form.pack(fill="x", padx=16, pady=(0, 6))
         for c, label, var, stretch in [
-            (0, "税收分类", "tax_var", True), (1, "产品详情", "info_var", True),
-            (2, "设备型号", "model_var", True), (3, "单位", "unit_var", False),
+            (0, "税收分类", "tax_var", True), (1, "规格型号", "info_var", True),
+            (2, "描述", "model_var", True), (3, "单位", "unit_var", False),
             (4, "库存数量", "num_var", False)
         ]:
             tk.Label(form, text=label, font=(FONT_FAMILY, 10),
@@ -889,8 +889,8 @@ class StockApp:
         self.tree.heading("chk", text="☐", anchor="center")
         self.tree.heading("id", text="编码", anchor="center")
         self.tree.heading("tax", text="税收分类", anchor="center")
-        self.tree.heading("model", text="设备型号", anchor="center")
-        self.tree.heading("info", text="产品详情", anchor="center")
+        self.tree.heading("model", text="描述", anchor="center")
+        self.tree.heading("info", text="规格型号", anchor="center")
         self.tree.heading("unit", text="单位", anchor="center"); self.tree.heading("num", text="数量", anchor="center")
         self.tree.column("chk", width=0, minwidth=0, stretch=False)
         self.tree.column("id", width=50, minwidth=40, anchor="center")
@@ -1194,10 +1194,10 @@ class StockApp:
                     details = []
                     if tax_match: details.append("税收分类：已存在 ✓")
                     else: details.append("税收分类：未找到「{0}」".format(tax or "(空)"))
-                    if info_match: details.append("产品详情：已存在 ✓")
-                    else: details.append("产品详情：未找到「{0}」".format(info or "(空)"))
-                    if model_match: details.append("设备型号：已存在 ✓")
-                    else: details.append("设备型号：未找到「{0}」".format(model or "(空)"))
+                    if info_match: details.append("规格型号：已存在 ✓")
+                    else: details.append("规格型号：未找到「{0}」".format(info or "(空)"))
+                    if model_match: details.append("描述：已存在 ✓")
+                    else: details.append("描述：未找到「{0}」".format(model or "(空)"))
                     if messagebox.askyesno("未找到匹配记录",
                             f"未找到与「{model or '(空型号)'}」完全匹配的记录。\n\n"
                             + "\n".join(details) + "\n\n"
@@ -1221,9 +1221,9 @@ class StockApp:
         failed_model = dlg.result.get("failed_model_rows", [])
         failed_info = dlg.result.get("failed_info_rows", [])
         if failed_model:
-            msg += f"\n\n失败 {len(failed_model)} 行（设备型号为空）：第 {', '.join(str(r) for r in failed_model)} 行，已跳过。"
+            msg += f"\n\n失败 {len(failed_model)} 行（描述为空）：第 {', '.join(str(r) for r in failed_model)} 行，已跳过。"
         if failed_info:
-            msg += f"\n失败 {len(failed_info)} 行（产品详情为空）：第 {', '.join(str(r) for r in failed_info)} 行，已跳过。"
+            msg += f"\n失败 {len(failed_info)} 行（规格型号为空）：第 {', '.join(str(r) for r in failed_info)} 行，已跳过。"
         messagebox.showinfo("导入完成", msg)
 
     def _reset_form(self):
